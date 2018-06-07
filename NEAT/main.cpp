@@ -109,16 +109,16 @@ void MutatePop(std::vector<std::unique_ptr<Genome>>& pop)
 	pop[4] = MutateAddNode(std::move(pop[4]), 0, 6, 7);
 }
 
-float Compatibility(const float c1, const float c2, const float c3, const std::vector<int>& history1, const std::vector<int>& history2, const std::vector<int>& weights1, const std::vector<int>& weights2)
+float Compatibility(const float c1, const float c2, const float c3, const Genome& genome1, const Genome& genome2)
 {
 	//Count the number of disjoint and excess between the two genes
-	auto it1 = history1.begin();
-	auto it2 = history2.begin();
-	auto end1 = history1.end();
-	auto end2 = history2.end();
+	auto it1 = genome1.history.begin();
+	auto it2 = genome2.history.begin();
+	auto end1 = genome1.history.end();
+	auto end2 = genome2.history.end();
 
-	auto w1 = weights1.begin();
-	auto w2 = weights2.begin();
+	auto w1 = genome1.weights.begin();
+	auto w2 = genome2.weights.begin();
 
 	int disjoint = 0;
 	int excess = 0;
@@ -156,23 +156,34 @@ float Compatibility(const float c1, const float c2, const float c3, const std::v
 	return (c1*excess + c2*disjoint + c3*d_sum/matching);
 }
 
+POP_PTR GenerateExample()
+{
+	POP_PTR pop = CreatePop(2, 3, 1);
+	(*pop)[0] = MutateAddNode(std::move((*pop)[0]), 1, 4, 5);
+	(*pop)[1] = MutateAddNode(std::move((*pop)[1]), 1, 4, 5);
+	(*pop)[1] = MutateAddNode(std::move((*pop)[1]), 4, 6, 7);
+	(*pop)[0] = MutateAddConnection(std::move((*pop)[0]), 1, 5, 8);
+	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 3, 5, 9);
+	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 1, 6, 10);
+	
+	return pop;
+}
+
 int main()
 {
 	std::cout << "hello bitches!" << std::endl;
 
-	float delta = Compatibility(1, 1, 1,
-		std::vector<int>{1, 2, 3, 4, 5, 8},
-		std::vector<int>{1, 2, 3, 4, 5, 6, 7, 9, 10},
-		std::vector<int>{1, 1, 1, 1, 1, 1},
-		std::vector<int>{1, 1, 1, 1, 1, 1, 1, 1, 1});
+	POP_PTR pop = GenerateExample();
+
+	float delta = Compatibility(1, 1, 1, *(*pop)[0], *(*pop)[1]);
 	
-	POP_PTR pop = CreatePop(100, 3, 1);
-	MutatePop(*pop);
-	size_t type0 = pop->at(0)->evolutionHash;
-	size_t type1 = pop->at(1)->evolutionHash;
-	size_t type2 = pop->at(2)->evolutionHash;
-	size_t type3 = pop->at(3)->evolutionHash;
-	size_t type4 = pop->at(4)->evolutionHash;
+	//POP_PTR pop = CreatePop(100, 3, 1);
+	//MutatePop(*pop);
+	//size_t type0 = pop->at(0)->evolutionHash;
+	//size_t type1 = pop->at(1)->evolutionHash;
+	//size_t type2 = pop->at(2)->evolutionHash;
+	//size_t type3 = pop->at(3)->evolutionHash;
+	//size_t type4 = pop->at(4)->evolutionHash;
 
 //	std::sort(pop.begin(), pop.end(), [](std::unique_ptr<Genome> a, std::unique_ptr<Genome> b) { return a->historic < b->historic; });
 
