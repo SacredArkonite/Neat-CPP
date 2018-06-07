@@ -109,9 +109,62 @@ void MutatePop(std::vector<std::unique_ptr<Genome>>& pop)
 	pop[4] = MutateAddNode(std::move(pop[4]), 0, 6, 7);
 }
 
+float Compatibility(const float c1, const float c2, const float c3, const std::vector<int>& history1, const std::vector<int>& history2, const std::vector<int>& weights1, const std::vector<int>& weights2)
+{
+	//Count the number of disjoint and excess between the two genes
+	auto it1 = history1.begin();
+	auto it2 = history2.begin();
+	auto end1 = history1.end();
+	auto end2 = history2.end();
+
+	auto w1 = weights1.begin();
+	auto w2 = weights2.begin();
+
+	int disjoint = 0;
+	int excess = 0;
+	int matching = 0;
+	float d_sum = 0;
+
+	while (it1 != end1 && it2 != end2)
+	{
+		if (*it1 == *it2) 
+		{	//same
+			//Calculate average weight difference of matching genes
+			matching++;
+			d_sum += std::abs(*w1 - *w2);
+
+			it1++;
+			it2++;
+			w1++;
+			w2++;
+		}
+		else if (*it1 < *it2)
+		{	//gene1 has disjoint
+			disjoint++;
+			it1++;
+			w1++;
+		}
+		else
+		{	//gene2 has disjoint
+			disjoint++;
+			it2++;
+			w2++;
+		}
+	}
+	excess = end1 - it1 + end2 - it2;
+
+	return (c1*excess + c2*disjoint + c3*d_sum/matching);
+}
+
 int main()
 {
 	std::cout << "hello bitches!" << std::endl;
+
+	float delta = Compatibility(1, 1, 1,
+		std::vector<int>{1, 2, 3, 4, 5, 8},
+		std::vector<int>{1, 2, 3, 4, 5, 6, 7, 9, 10},
+		std::vector<int>{1, 1, 1, 1, 1, 1},
+		std::vector<int>{1, 1, 1, 1, 1, 1, 1, 1, 1});
 	
 	POP_PTR pop = CreatePop(100, 3, 1);
 	MutatePop(*pop);
