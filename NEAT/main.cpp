@@ -5,6 +5,10 @@
 #include<random>
 #include<map>
 
+#include"RNG.h"
+
+RNG rng;
+
 typedef uint8_t N_SIZE;
 typedef uint16_t N_SIZEx2;
 typedef uint32_t C_SIZE;
@@ -60,7 +64,7 @@ GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
 		for (N_SIZE j = nIns; j < genome->nodes; j++) {
 			genome->sourceNode.push_back(i);
 			genome->destNode.push_back(j);
-			genome->weights.push_back(0.0);
+			genome->weights.push_back(rng.RngWeight());
 			genome->history.push_back(hist++);
 		}
 	}
@@ -74,7 +78,7 @@ GEN_PTR MutateAddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, 
 	genome->history.push_back(histNb);
 	genome->sourceNode.push_back(from);
 	genome->destNode.push_back(to);
-	genome->weights.push_back(0.0);
+	genome->weights.push_back(rng.RngWeight());
 
 	return genome;
 }
@@ -200,40 +204,35 @@ bool CheckIfConnectionExists(const std::vector<GEN_PTR>::iterator it, const std:
 POP_PTR MutateWeights(POP_PTR pop, float genomeWeightMutation, float weightMutation, float minWeightMutation, float maxWeightMutation)
 {
 	//We mutate by scaling randomly
-	std::random_device rd;
-	std::mt19937 rng(rd());
-	std::uniform_real_distribution<float> rngProb(0, 1);
-	std::uniform_real_distribution<float> rngRange(minWeightMutation, maxWeightMutation);
-	std::uniform_int_distribution<unsigned short> rngBool(0, 1);
-
+	int c = 0;
+	
 	auto pop_end = pop->end();
 	for (auto it = pop->begin(); it != pop_end; it++) {
 		//Mutate the genome?
-		if (rngProb(rng) < genomeWeightMutation)
+		if (rng.RngProb() < genomeWeightMutation)
 		{
 			auto i_w_end = (*it)->weights.end();
 			for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
 			{
 				//Mutate the weight by scaling?
-				if (rngProb(rng) < weightMutation)
+				if (rng.RngProb() < weightMutation)
 				{
-					(*i_w) *= rngRange(rng);
+					(*i_w) *= rng.RngRange();
 				}
-				//Mutate random
+				//Mutate random (same as initial)
 				else
 				{
 					// change sing?
-					if (rngBool(rng))
-					{
-						(*i_w) = rngRange(rng);
-					}
-					else
-					{
-						(*i_w) = -rngRange(rng);
-					}
+					(*i_w) = rng.RngWeight();
+				}
+
+				if ((*i_w) == 0)
+				{
+					std::cout << "WTF?" << std::endl;
 				}
 			}
 		}
+		c++;
 	}
 
 	return pop;
@@ -254,15 +253,12 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, f
 	std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR> mm_node;
 	std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR> mm_conn;
 
-	std::random_device rd;
-	std::mt19937 rng(rd());
-	std::uniform_int_distribution<unsigned int> rngDist(0, 0xFFFFFFFF);
 	auto end = (*pop).end();
 
 	//Distribute the genome with their transform into the maps
 	for (auto it = (*pop).begin(); it < end; it++)
 	{
-		float rn = (rngDist(rng) % 256) / 256.0f;
+		float rn = rng.RngProb();
 		if (rn < new_node_percent)
 		{	// Mutate Add Node
 			//Do not mutate if we reached the max number of nodes
@@ -273,7 +269,7 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, f
 			else
 			{
 				size_t hash = (*it)->evolutionHash;
-				C_SIZE connection_id = rngDist(rng) % ((*it)->history.size());
+				C_SIZE connection_id = rng.LessThan((*it)->history.size());
 				auto key = std::pair<size_t, C_SIZE>(hash, connection_id);
 				mm_node.insert({ key, std::move(*it) });
 			}
@@ -289,7 +285,7 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, f
 			{
 				size_t hash = (*it)->evolutionHash;
 				N_SIZE nb_nodes = (*it)->nodes;
-				auto connection = std::pair<N_SIZE, N_SIZE>(rngDist(rng) % nb_nodes, rngDist(rng) % nb_nodes);
+				auto connection = std::pair<N_SIZE, N_SIZE>(rng.LessThan(nb_nodes), rng.LessThan(nb_nodes));
 
 				//Check if this connection already exists
 				if (CheckIfConnectionExists(it, connection))
@@ -364,11 +360,11 @@ int main()
 	//float delta = Compatibility(1, 1, 1, *(*pop)[0], *(*pop)[1]);
 
 	C_SIZE hist;
-	POP_PTR pop = CreatePop(100, 2, 1, hist);
-	for (int i = 0; i < 20; i++)
+	POP_PTR pop = CreatePop(1000, 2, 1, hist);
+	for (int i = 0; i < 200; i++)
 	{
 		pop = MutatePop(std::move(pop), 0.25, 0.25, 0.8, 0.9, 0.5, 1.5, hist);
-		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
+		if (i%1 == 0) std::cout << "GEN # " << i << std::endl;
 	}
 	//size_t type0 = pop->at(0)->evolutionHash;
 	//size_t type1 = pop->at(1)->evolutionHash;
