@@ -81,6 +81,8 @@ GEN_PTR MutateAddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, 
 
 GEN_PTR MutateAddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
 {
+	//Don't forget to disable the old connection!!
+	genome->disabledIndex.push_back(index);
 	genome->nodes++;
 	genome->history.push_back(histNb);
 	genome->history.push_back(histNb+1);
