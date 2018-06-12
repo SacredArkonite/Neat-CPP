@@ -8,6 +8,8 @@
 typedef uint8_t N_SIZE;
 typedef uint16_t N_SIZEx2;
 typedef uint32_t C_SIZE;
+#define MAX_NODES 0xFF
+#define MAX_CONNECTIONS 1500
 
 struct Genome
 {
@@ -54,8 +56,8 @@ GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
 	auto genome = std::make_unique<Genome>();
 	C_SIZE hist = 1;
 	genome->nodes = nIns + nOuts;
-	for (N_SIZE i = 1; i <= nIns; i++) {
-		for (N_SIZE j = nIns + 1; j <= genome->nodes; j++) {
+	for (N_SIZE i = 0; i < nIns; i++) {
+		for (N_SIZE j = nIns; j < genome->nodes; j++) {
 			genome->sourceNode.push_back(i);
 			genome->destNode.push_back(j);
 			genome->weights.push_back(0.0);
@@ -79,7 +81,6 @@ GEN_PTR MutateAddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, 
 
 GEN_PTR MutateAddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
 {
-	genome->disabledIndex.push_back(index);
 	genome->nodes++;
 	genome->history.push_back(histNb);
 	genome->history.push_back(histNb+1);
@@ -106,6 +107,7 @@ POP_PTR CreatePop(const int popSize, const N_SIZE inputs, const N_SIZE outputs, 
 		pop->push_back(CreateGenome(inputs, outputs));
 	}
 
+	//Actualize the noevlty ID based on the initial size
 	hist = (*pop)[0]->history.size() + 1;
 	return pop;
 }
@@ -175,7 +177,7 @@ bool CheckIfConnectionExists(const std::vector<GEN_PTR>::iterator it, const std:
 	auto sr_begin = (*it)->sourceNode.begin();
 	auto sr_ptr = sr_begin;
 	auto sr_end = (*it)->sourceNode.end();
-	C_SIZE index = -1; // We crash if not found
+	C_SIZE index = -1 ; // We crash if not found
 	for (; sr_ptr != sr_end; sr_ptr++) {
 		if ((*sr_ptr) == connection.first)
 		{
@@ -217,30 +219,42 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, C
 		float rn = (rngDist(rng) % 256) / 256.0f;
 		if (rn < new_node_percent)
 		{	// Mutate Add Node
-			//*it = MutateAddNode(std::move(*it), 1, 1, 1);
-
-			size_t hash = (*it)->evolutionHash;
-			C_SIZE connection_id = rngDist(rng) % ((*it)->history.size());
-			auto key = std::pair<size_t, C_SIZE>(hash, connection_id);
-			mm_node.insert({ key, std::move(*it) });
-		}
-		else if (rn < new_link_percent)
-		{	// Mutate Add Connection
-			//*it = MutateAddConnection(std::move(*it), 1, 1, 2);
-
-			size_t hash = (*it)->evolutionHash;
-			N_SIZE nb_nodes = (*it)->nodes;
-			auto connection = std::pair<N_SIZE, N_SIZE>(rngDist(rng) % nb_nodes, rngDist(rng) % nb_nodes);
-			
-			//Check if this connection already exists
-			if (CheckIfConnectionExists(it, connection))
+			//Do not mutate if we reached the max number of nodes
+			if ((*it)->nodes == MAX_NODES)
 			{
 				nexxgen->push_back(std::move(*it));
 			}
 			else
 			{
-				auto key = std::pair<size_t, std::pair<N_SIZE, N_SIZE>>(hash, connection);
-				mm_conn.insert({ key, std::move(*it) });
+				size_t hash = (*it)->evolutionHash;
+				C_SIZE connection_id = rngDist(rng) % ((*it)->history.size());
+				auto key = std::pair<size_t, C_SIZE>(hash, connection_id);
+				mm_node.insert({ key, std::move(*it) });
+			}
+		}
+		else if (rn < new_link_percent)
+		{	// Mutate Add Connection
+			//Do not mutate if we reached the max number of connections
+			if ((*it)->sourceNode.size() == MAX_NODES)
+			{
+				nexxgen->push_back(std::move(*it));
+			}
+			else
+			{
+				size_t hash = (*it)->evolutionHash;
+				N_SIZE nb_nodes = (*it)->nodes;
+				auto connection = std::pair<N_SIZE, N_SIZE>(rngDist(rng) % nb_nodes, rngDist(rng) % nb_nodes);
+
+				//Check if this connection already exists
+				if (CheckIfConnectionExists(it, connection))
+				{
+					nexxgen->push_back(std::move(*it));
+				}
+				else
+				{
+					auto key = std::pair<size_t, std::pair<N_SIZE, N_SIZE>>(hash, connection);
+					mm_conn.insert({ key, std::move(*it) });
+				}
 			}
 		}
 		else
@@ -302,7 +316,11 @@ int main()
 
 	C_SIZE hist;
 	POP_PTR pop = CreatePop(10, 2, 1, hist);
-	pop = MutatePop(std::move(pop),0.25,0.25,hist);
+	for (int i = 0; i < 2500; i++)
+	{
+		pop = MutatePop(std::move(pop), 0.25, 0.25, hist);
+		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
+	}
 	//size_t type0 = pop->at(0)->evolutionHash;
 	//size_t type1 = pop->at(1)->evolutionHash;
 	//size_t type2 = pop->at(2)->evolutionHash;
