@@ -17,6 +17,18 @@ typedef uint32_t C_SIZE;
 
 struct Genome
 {
+	//Genome(const Genome & src) = default;
+		/*sourceNode(src.sourceNode),
+		destNode(src.destNode),
+		history(src.history),
+		disabledIndex(src.disabledIndex),
+		weights(src.weights),
+		nodes(src.nodes),
+		evolutionHash(src.evolutionHash),
+		species(src.species),
+		fitness(src.fitness)
+	{}*/
+
 	std::vector<N_SIZE> sourceNode;
 	std::vector<N_SIZE> destNode;
 	std::vector<C_SIZE> history;
@@ -24,6 +36,13 @@ struct Genome
 	std::vector<float> weights;
 	N_SIZE nodes = 0;
 	size_t evolutionHash = 0;
+	uint16_t species = 0;
+	float fitness = 0.0f;
+
+	bool operator < (const Genome& str) const
+	{
+		return (species < str.species);
+	}
 };
 typedef std::unique_ptr<Genome> GEN_PTR;
 typedef std::unique_ptr<std::vector<GEN_PTR>> POP_PTR;
@@ -60,6 +79,8 @@ GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
 	auto genome = std::make_unique<Genome>();
 	C_SIZE hist = 1;
 	genome->nodes = nIns + nOuts;
+	genome->species = 0;
+	genome->fitness = 0.0;
 	for (N_SIZE i = 0; i < nIns; i++) {
 		for (N_SIZE j = nIns; j < genome->nodes; j++) {
 			genome->sourceNode.push_back(i);
@@ -160,7 +181,7 @@ float Compatibility(const float c1, const float c2, const float c3, const Genome
 			w2++;
 		}
 	}
-	excess = end1 - it1 + end2 - it2;
+	excess = (end1 - it1) + (end2 - it2);
 
 	return (c1*excess + c2*disjoint + c3*d_sum/matching);
 }
@@ -225,11 +246,6 @@ POP_PTR MutateWeights(POP_PTR pop, float genomeWeightMutation, float weightMutat
 					// change sing?
 					(*i_w) = rng.RngWeight();
 				}
-
-				if ((*i_w) == 0)
-				{
-					std::cout << "WTF?" << std::endl;
-				}
 			}
 		}
 		c++;
@@ -238,7 +254,7 @@ POP_PTR MutateWeights(POP_PTR pop, float genomeWeightMutation, float weightMutat
 	return pop;
 }
 
-POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, float genomeWeightMutation, float weightMutation, float minWeightMutation, float maxWeightMutation, C_SIZE& hist)
+POP_PTR MutateStructure(POP_PTR pop, float new_node_percent, float new_link_percent, C_SIZE& hist)
 {
 	//making a new node and a new connection should be mutually exclusive
 	new_link_percent = new_link_percent + new_node_percent;
@@ -341,14 +357,68 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, f
 			}
 			nexxgen->push_back(MutateAddConnection(std::move(it->second), last_key.second.first, last_key.second.second, hist));
 		}
-
 		hist++;
 	}
 
-	//Mutate weights
-	nexxgen = MutateWeights(std::move(nexxgen), genomeWeightMutation,  weightMutation,  minWeightMutation,maxWeightMutation);
-
 	return nexxgen;
+}
+
+int debug_counter = 0;
+POP_PTR ClassifyGenomes(POP_PTR encyclopedia, POP_PTR pop, std::vector<uint16_t>& census,  float c1, const float c2, const float c3, const float dt)
+{
+	//Update all the genome's species, build a census and order the population by species
+	census = std::vector<uint16_t>(encyclopedia->size());
+	auto it_end = pop->end();
+	for (auto it = pop->begin(); it != it_end; it++)
+	{
+		auto dic_begin = encyclopedia->begin();
+		auto dic_end = encyclopedia->end();
+		bool found = false;
+		for (auto dic = dic_begin; dic != dic_end; dic++)
+		{
+			debug_counter++;
+			if (debug_counter == 141) {
+				std::cout << "WTF \n";
+			}
+			if (Compatibility(c1, c2, c3, **it, **dic) < dt)
+			{
+				uint16_t specieNb = dic - dic_begin;
+				(*it)->species = specieNb;
+				census[specieNb] += 1;
+				found = true;
+				break;
+			}
+		}
+		if (!found)
+		{
+			encyclopedia->push_back(std::make_unique<Genome>(**it));
+			(*it)->species = encyclopedia->size();
+			census.push_back(1);
+		}
+	}
+	
+	std::sort(pop->begin(), pop->end());
+
+	return pop;
+}
+
+POP_PTR UpdateEncyclopedia(const POP_PTR& pop, const std::vector<uint16_t>& census)
+{
+	//Select a random individual for each species
+	POP_PTR encyclopedia = std::make_unique<std::vector<GEN_PTR>>();
+	uint16_t specieLocation = 0;
+
+	auto it_end = census.end();
+	for (auto it = census.begin();it != it_end; it++)
+	{
+		if (*it != 0) {
+			GEN_PTR specimen = std::make_unique<Genome>(*(pop->at(specieLocation + rng.LessThan(*it))));
+			encyclopedia->push_back(std::move(specimen));
+			specieLocation += *it;
+		}
+	}
+
+	return encyclopedia;
 }
 
 int main()
@@ -359,21 +429,41 @@ int main()
 
 	//float delta = Compatibility(1, 1, 1, *(*pop)[0], *(*pop)[1]);
 
+	//Create initial population
 	C_SIZE hist;
 	POP_PTR pop = CreatePop(1000, 2, 1, hist);
-	for (int i = 0; i < 200; i++)
+
+	//Generate species dictionnary
+	POP_PTR speciesEncyclopedia = std::make_unique<std::vector<GEN_PTR>>();;
+	speciesEncyclopedia->push_back(std::make_unique<Genome>(*(pop->at(rng.LessThan(10)))));
+	std::vector<uint16_t> census;
+
+	for (int i = 0; i < 30; i++)
 	{
-		pop = MutatePop(std::move(pop), 0.25, 0.25, 0.8, 0.9, 0.5, 1.5, hist);
-		if (i%1 == 0) std::cout << "GEN # " << i << std::endl;
+		//Calculate Fitness / Simulate
+
+
+		//Adjust Fitness
+
+
+		//Speciate
+		pop = ClassifyGenomes(std::move(speciesEncyclopedia), std::move(pop), census, 1, 1, 0, 4);
+
+		//Update encyclopedia for next gen classification
+		speciesEncyclopedia = UpdateEncyclopedia(pop, census);
+
+		//Reproduce
+
+
+		//Mutate Structure
+		pop = MutateStructure(std::move(pop), 0.03, 0.05, hist);
+		
+		//Mutate weights
+		pop = MutateWeights(std::move(pop), 0.8, 0.9, 0.5, 1.5);
+
+
+		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
 	}
-	//size_t type0 = pop->at(0)->evolutionHash;
-	//size_t type1 = pop->at(1)->evolutionHash;
-	//size_t type2 = pop->at(2)->evolutionHash;
-	//size_t type3 = pop->at(3)->evolutionHash;
-	//size_t type4 = pop->at(4)->evolutionHash;
-
-//	std::sort(pop.begin(), pop.end(), [](std::unique_ptr<Genome> a, std::unique_ptr<Genome> b) { return a->historic < b->historic; });
-
 
 	char w;
 	std::cin>>w;
