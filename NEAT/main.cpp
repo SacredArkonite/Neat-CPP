@@ -598,14 +598,105 @@ POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const
 	return pop;
 }
 
+//XOR
+std::vector<float> GetSimData(int frame)
+{
+	switch (frame % 4)
+	{
+	case 0:
+		return { 0,0,0 };
+	case 1:
+		return { 0,0,1 };
+	case 2:
+		return { 0,1,0 };
+	case 3:
+		return { 0,1,1 };
+	default:
+		break;
+	}
+}
+
+//XOR
+std::vector<float> GetSimFitness(int frame, std::vector<float> action)
+{
+	switch (frame % 4)
+	{
+	case 0:
+		return { action[0] + 0 };
+	case 1:
+		return { action[0] - 1 };
+	case 2:
+		return { action[0] - 1 };
+	case 3:
+		return { action[0] + 0 };
+	default:
+		break;
+	}
+}
+
+inline float ActivationFunction(const float value)
+{
+	return value / (1 + abs(value));
+}
+
 std::vector<float> Propagate(const std::vector<float>& input, const GEN_PTR& gen, uint32_t maxSteps = 5)
 {
-	return {1.0};
+	//Fill inputs
+	std::vector<float> nodes(gen->nodes,0);
+	std::vector<float> temp_nodes(gen->nodes,0);
+	N_SIZE input_it = 0;
+	N_SIZE input_it_end = gen->inputNode.size();
+	for (; input_it < input_it_end; input_it++) 
+	{
+		N_SIZE inputName = gen->inputNode[input_it];
+		nodes[inputName] = input[input_it];
+	}
+
+	//Let propagate a few steps
+	auto disabled_it = gen->disabledIndex.begin();
+	auto disabled_it_end = gen->disabledIndex.end();
+	for (int i = 0; i < maxSteps; i++) {
+		//1 step
+		for (int c = 0; c < gen->history.size(); c++) {
+			if (disabled_it != disabled_it_end && *disabled_it == c)
+				disabled_it++;
+			else
+				temp_nodes[gen->destNode[c]] += (nodes[gen->sourceNode[c]] * gen->weights[c]);
+		}
+		//Activation function
+		for (int c = 0; c < nodes.size(); c++) {
+			nodes[c] = ActivationFunction(temp_nodes[c]);
+		}
+	}
+
+	//Collect the outputs
+	N_SIZE output_it = 0;
+	N_SIZE output_it_end = gen->outputNode.size();
+
+	std::vector<float> output(gen->outputNode.size(),0);
+	for (; output_it < output_it_end; output_it++)
+	{
+		N_SIZE outputName = gen->outputNode[output_it];
+		output[output_it] = nodes[outputName];
+	}
+
+	return output;
 }
 
 float Simulate(const GEN_PTR& gen)
 {
-	return 1;
+	float fitness = 1;
+
+	for (int frame = 0; frame < 4; frame++) {
+		std::vector<float> inputData = GetSimData(frame);
+		std::vector<float> actions = Propagate(inputData, gen, 5);
+		std::vector<float> delta = GetSimFitness(frame, actions);
+
+		for each (float d in delta)
+			fitness += d*d;
+	}
+
+	return 1 / fitness;
 }
 
 POP_PTR CalculateFitness(POP_PTR pop)
@@ -613,7 +704,7 @@ POP_PTR CalculateFitness(POP_PTR pop)
 	auto it_end = pop->end();
 	for (auto it = pop->begin(); it < it_end; it++)
 	{
-
+		(*it)->fitness = Simulate(*it);
 	}
 	return pop;
 }
