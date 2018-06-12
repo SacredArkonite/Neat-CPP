@@ -108,7 +108,6 @@ GEN_PTR MutateAddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
 {
 	//Don't forget to disable the old connection!!
 	genome->disabledIndex.push_back(index);
-	genome->nodes++;
 	genome->history.push_back(histNb);
 	genome->history.push_back(histNb+1);
 
@@ -121,6 +120,7 @@ GEN_PTR MutateAddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
 	genome->weights.push_back(genome->weights[index]);
 
 	genome->evolutionHash = hashGenetics(genome->evolutionHash, histNb, histNb+1);
+	genome->nodes++;
 
 	return genome;
 }
@@ -192,9 +192,9 @@ POP_PTR GenerateExample(C_SIZE& hist)
 	(*pop)[0] = MutateAddNode(std::move((*pop)[0]), 1, 4);
 	(*pop)[1] = MutateAddNode(std::move((*pop)[1]), 1, 4);
 	(*pop)[1] = MutateAddNode(std::move((*pop)[1]), 4, 6);
-	(*pop)[0] = MutateAddConnection(std::move((*pop)[0]), 1, 5, 8);
-	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 3, 5, 9);
-	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 1, 6, 10);
+	(*pop)[0] = MutateAddConnection(std::move((*pop)[0]), 0, 4, 8);
+	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 2, 4, 9);
+	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 0, 5, 10);
 	
 	return pop;
 }
@@ -421,12 +421,159 @@ POP_PTR UpdateEncyclopedia(const POP_PTR& pop, const std::vector<uint16_t>& cens
 	return encyclopedia;
 }
 
+GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableChance)
+{
+	//Create offspring. genome1 has priority on weights
+	auto it1 = 0;
+	auto it2 = 0;
+	auto end1 = genome1->history.size();
+	auto end2 = genome2->history.size();
+
+	auto dis_it1 = genome1->disabledIndex.begin();
+	auto dis_it2 = genome2->disabledIndex.begin();
+	auto dis_it1_end = genome1->disabledIndex.end();
+	auto dis_it2_end = genome2->disabledIndex.end();
+	uint16_t dis_offset_1 = 0;
+	uint16_t dis_offset_2 = 0;
+
+	GEN_PTR offspring = std::make_unique<Genome>();
+
+	while (it1 < end1 && it2 < end2)
+	{
+		if (genome1->history[it1] == genome2->history[it2])
+		{	//same
+
+			//Inherits weights from random parent
+			offspring->history.push_back(genome1->history[it1]);
+			offspring->sourceNode.push_back(genome1->sourceNode[it1]);
+			offspring->destNode.push_back(genome1->destNode[it1]);
+			offspring->weights.push_back(rng.RngBool()?genome1->weights[it1]:genome2->weights[it2]);
+
+			//Inherits disabled links
+			if (dis_it1 != dis_it1_end && *dis_it1 == it1)
+			{
+				offspring->disabledIndex.push_back(it1 + dis_offset_1);
+				dis_it1++;
+			}
+			if (dis_it2 != dis_it2_end && *dis_it2 == it2)
+			{
+				//Do not add if already there from the other parent
+				if(offspring->disabledIndex.back() != it2 + dis_offset_2)
+					offspring->disabledIndex.push_back(it2 + dis_offset_2);
+				dis_it2++;
+			}
+
+			it1++;
+			it2++;
+		}
+		else if (genome1->history[it1] < genome2->history[it2])
+		{	//gene1 has disjoint
+
+			//Inherits from genome 1
+			offspring->history.push_back(genome1->history[it1]);
+			offspring->sourceNode.push_back(genome1->sourceNode[it1]);
+			offspring->destNode.push_back(genome1->destNode[it1]);
+			offspring->weights.push_back(genome1->weights[it1]);
+
+			//Inherits disabled links
+			if (dis_it1 != dis_it1_end && *dis_it1 == it1)
+			{
+				offspring->disabledIndex.push_back(it1 + dis_offset_1);
+				dis_it1++;
+			}
+
+			it1++;
+			dis_offset_2++;
+		}
+		else
+		{	//gene2 has disjoint
+
+			//Inherits from genome 2
+			offspring->history.push_back(genome2->history[it2]);
+			offspring->sourceNode.push_back(genome2->sourceNode[it2]);
+			offspring->destNode.push_back(genome2->destNode[it2]);
+			offspring->weights.push_back(genome2->weights[it2]);
+
+			//Inherits disabled links
+			if (dis_it2 != dis_it2_end && *dis_it2 == it2)
+			{
+				offspring->disabledIndex.push_back(it2 + dis_offset_2);
+				dis_it2++;
+			}
+
+			it2++;
+			dis_offset_1++;
+		}
+	}
+
+	//Then, add the excess genes
+	//Try for genome1
+	while (it1 < end1)
+	{
+		//Inherits from genome 1
+		offspring->history.push_back(genome1->history[it1]);
+		offspring->sourceNode.push_back(genome1->sourceNode[it1]);
+		offspring->destNode.push_back(genome1->destNode[it1]);
+		offspring->weights.push_back(genome1->weights[it1]);
+
+		//Inherits disabled links
+		if (dis_it1 != dis_it1_end && *dis_it1 == it1)
+		{
+			offspring->disabledIndex.push_back(it1 + dis_offset_1);
+			dis_it1++;
+		}
+
+		it1++;
+	}
+	//Try for genome2
+	while (it2 < end2)
+	{
+		//Inherits from genome 2
+		offspring->history.push_back(genome2->history[it2]);
+		offspring->sourceNode.push_back(genome2->sourceNode[it2]);
+		offspring->destNode.push_back(genome2->destNode[it2]);
+		offspring->weights.push_back(genome2->weights[it2]);
+
+		//Inherits disabled links
+		if (dis_it2 != dis_it2_end && *dis_it2 == it2)
+		{
+			offspring->disabledIndex.push_back(it2 + dis_offset_2);
+			dis_it2++;
+		}
+
+		it2++;
+	}
+
+	//Finally, re-enable disabled links at x% rate
+	offspring->disabledIndex.erase(
+		std::remove_if(
+			offspring->disabledIndex.begin(),
+			offspring->disabledIndex.end(),
+			[](uint16_t enableChance) {return (rng.RngProb()<enableChance); }),
+		offspring->disabledIndex.end());
+
+	return offspring;
+}
+/*
+POP_PTR CreateOffsprings(const POP_PTR& pop, const float noCrossover, const float enableChance)
+{
+	//Create an entire new gen
+
+
+}
+*/
+
+
 int main()
 {
 	std::cout << "hello bitches!" << std::endl;
 
-	//POP_PTR pop = GenerateExample();
+	C_SIZE hist;
+	POP_PTR pop = GenerateExample(hist);
+	GEN_PTR offspring = Mate(pop->at(0), pop->at(1),0.25);
 
+
+/*
 	//float delta = Compatibility(1, 1, 1, *(*pop)[0], *(*pop)[1]);
 
 	//Create initial population
@@ -438,7 +585,7 @@ int main()
 	speciesEncyclopedia->push_back(std::make_unique<Genome>(*(pop->at(rng.LessThan(10)))));
 	std::vector<uint16_t> census;
 
-	for (int i = 0; i < 30; i++)
+	for (int i = 0; i < 101; i++)
 	{
 		//Calculate Fitness / Simulate
 
@@ -464,7 +611,7 @@ int main()
 
 		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
 	}
-
+	*/
 	char w;
 	std::cin>>w;
 	return 0;
