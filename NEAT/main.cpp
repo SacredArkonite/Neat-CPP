@@ -31,6 +31,8 @@ struct Genome
 
 	std::vector<N_SIZE> sourceNode;
 	std::vector<N_SIZE> destNode;
+	std::vector<N_SIZE> inputNode;
+	std::vector<N_SIZE> outputNode;
 	std::vector<C_SIZE> history;
 	std::vector<C_SIZE> disabledIndex;
 	std::vector<float> weights;
@@ -66,6 +68,13 @@ size_t hashGenetics(const size_t oldHash, const std::vector<C_SIZE>& newHist) {
 	return newHash;
 }
 
+size_t hashGenetics(const size_t oldHash, const C_SIZE newHist) {
+	std::hash<int> hasher;
+	size_t newHash = oldHash;
+	newHash ^= hasher(newHist) + 0x9e3779b9 + (newHash << 6) + (newHash >> 2);
+	return newHash;
+}
+
 size_t hashGenetics(const size_t oldHash, const C_SIZE newHist1, const C_SIZE newHist2) {
 	std::hash<int> hasher;
 	size_t newHash = oldHash;
@@ -74,32 +83,13 @@ size_t hashGenetics(const size_t oldHash, const C_SIZE newHist1, const C_SIZE ne
 	return newHash;
 }
 
-GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
-{
-	auto genome = std::make_unique<Genome>();
-	C_SIZE hist = 1;
-	genome->nodes = nIns + nOuts;
-	genome->species = 0;
-	genome->fitness = 0.0;
-	for (N_SIZE i = 0; i < nIns; i++) {
-		for (N_SIZE j = nIns; j < genome->nodes; j++) {
-			genome->sourceNode.push_back(i);
-			genome->destNode.push_back(j);
-			genome->weights.push_back(rng.RngWeight());
-			genome->history.push_back(hist++);
-		}
-	}
-
-	genome->evolutionHash = hashGenetics(genome->history);
-	return genome;
-}
-
 GEN_PTR MutateAddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, const C_SIZE histNb)
 {
 	genome->history.push_back(histNb);
 	genome->sourceNode.push_back(from);
 	genome->destNode.push_back(to);
 	genome->weights.push_back(rng.RngWeight());
+	genome->evolutionHash = hashGenetics(genome->evolutionHash, histNb);
 
 	return genome;
 }
@@ -121,6 +111,47 @@ GEN_PTR MutateAddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
 
 	genome->evolutionHash = hashGenetics(genome->evolutionHash, histNb, histNb+1);
 	genome->nodes++;
+
+	return genome;
+}
+
+GEN_PTR MutateAddInput(GEN_PTR genome, C_SIZE& histNb)
+{
+	genome->inputNode.push_back(genome->nodes);
+	for (int i = genome->outputNode.size() - 1; i >= 0; i--) {
+		genome = MutateAddConnection(std::move(genome), genome->nodes, genome->outputNode[i], histNb++);
+	}
+
+	genome->nodes++;
+
+	return genome;
+}
+
+GEN_PTR MutateAddOutput(GEN_PTR genome, C_SIZE& histNb)
+{
+	genome->outputNode.push_back(genome->nodes);
+	for (int i = genome->inputNode.size() - 1; i >= 0; i--) {
+		genome = MutateAddConnection(std::move(genome), genome->inputNode[i], genome->nodes, histNb++);
+	}
+
+	genome->nodes++;
+
+	return genome;
+}
+
+GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
+{
+	auto genome = std::make_unique<Genome>();
+	C_SIZE hist = 1;
+	genome->nodes = 0;
+	genome->species = 0;
+	genome->fitness = 0.0;
+
+	for (N_SIZE i = 0; i < nIns; i++)
+		genome = MutateAddInput(std::move(genome), hist);
+
+	for (N_SIZE j = 0; j < nOuts; j++)
+		genome = MutateAddOutput(std::move(genome),hist);
 
 	return genome;
 }
@@ -554,31 +585,54 @@ GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableC
 
 	return offspring;
 }
-/*
-POP_PTR CreateOffsprings(const POP_PTR& pop, const float noCrossover, const float enableChance)
+
+
+POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const float noCrossover, const float enableChance)
 {
 	//Create an entire new gen
+	POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
+
+	//Select MVPS
 
 
+	return pop;
 }
-*/
 
+std::vector<float> Propagate(const std::vector<float>& input, const GEN_PTR& gen, uint32_t maxSteps = 5)
+{
+	return {1.0};
+}
+
+float Simulate(const GEN_PTR& gen)
+{
+	return 1;
+}
+
+POP_PTR CalculateFitness(POP_PTR pop)
+{
+	auto it_end = pop->end();
+	for (auto it = pop->begin(); it < it_end; it++)
+	{
+
+	}
+	return pop;
+}
 
 int main()
 {
 	std::cout << "hello bitches!" << std::endl;
-
+/*
 	C_SIZE hist;
 	POP_PTR pop = GenerateExample(hist);
 	GEN_PTR offspring = Mate(pop->at(0), pop->at(1),0.25);
+	*/
 
 
-/*
 	//float delta = Compatibility(1, 1, 1, *(*pop)[0], *(*pop)[1]);
 
 	//Create initial population
 	C_SIZE hist;
-	POP_PTR pop = CreatePop(1000, 2, 1, hist);
+	POP_PTR pop = CreatePop(10, 3, 1, hist);
 
 	//Generate species dictionnary
 	POP_PTR speciesEncyclopedia = std::make_unique<std::vector<GEN_PTR>>();;
@@ -588,7 +642,7 @@ int main()
 	for (int i = 0; i < 101; i++)
 	{
 		//Calculate Fitness / Simulate
-
+		pop = CalculateFitness(std::move(pop));
 
 		//Adjust Fitness
 
@@ -600,7 +654,7 @@ int main()
 		speciesEncyclopedia = UpdateEncyclopedia(pop, census);
 
 		//Reproduce
-
+		pop = CreateOffsprings(std::move(pop), census, 0.25, 0.25);
 
 		//Mutate Structure
 		pop = MutateStructure(std::move(pop), 0.03, 0.05, hist);
@@ -611,7 +665,7 @@ int main()
 
 		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
 	}
-	*/
+	
 	char w;
 	std::cin>>w;
 	return 0;
