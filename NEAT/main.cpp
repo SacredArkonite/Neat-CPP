@@ -195,7 +195,49 @@ bool CheckIfConnectionExists(const std::vector<GEN_PTR>::iterator it, const std:
 	return false;
 }
 
-POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, C_SIZE& hist)
+POP_PTR MutateWeights(POP_PTR pop, float genomeWeightMutation, float weightMutation, float minWeightMutation, float maxWeightMutation)
+{
+	//We mutate by scaling randomly
+	std::random_device rd;
+	std::mt19937 rng(rd());
+	std::uniform_real_distribution<float> rngProb(0, 1);
+	std::uniform_real_distribution<float> rngRange(minWeightMutation, maxWeightMutation);
+	std::uniform_int_distribution<unsigned short> rngBool(0, 1);
+
+	auto pop_end = pop->end();
+	for (auto it = pop->begin(); it != pop_end; it++) {
+		//Mutate the genome?
+		if (rngProb(rng) < genomeWeightMutation)
+		{
+			auto i_w_end = (*it)->weights.end();
+			for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
+			{
+				//Mutate the weight by scaling?
+				if (rngProb(rng) < weightMutation)
+				{
+					(*i_w) *= rngRange(rng);
+				}
+				//Mutate random
+				else
+				{
+					// change sing?
+					if (rngBool(rng))
+					{
+						(*i_w) = rngRange(rng);
+					}
+					else
+					{
+						(*i_w) = -rngRange(rng);
+					}
+				}
+			}
+		}
+	}
+
+	return pop;
+}
+
+POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, float genomeWeightMutation, float weightMutation, float minWeightMutation, float maxWeightMutation, C_SIZE& hist)
 {
 	//making a new node and a new connection should be mutually exclusive
 	new_link_percent = new_link_percent + new_node_percent;
@@ -212,8 +254,10 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, C
 
 	std::random_device rd;
 	std::mt19937 rng(rd());
-	std::uniform_int_distribution<unsigned int> rngDist(0, -1);
+	std::uniform_int_distribution<unsigned int> rngDist(0, 0xFFFFFFFF);
 	auto end = (*pop).end();
+
+	//Distribute the genome with their transform into the maps
 	for (auto it = (*pop).begin(); it < end; it++)
 	{
 		float rn = (rngDist(rng) % 256) / 256.0f;
@@ -265,7 +309,7 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, C
 
 	}
 
-	//iterate over the new nodes multimap in key order
+	//Iterate over the new nodes multimap in key order
 	if (!mm_node.empty())
 	{
 		std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR>::iterator it = mm_node.begin();
@@ -284,7 +328,7 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, C
 		hist += 2;
 	}
 
-	//iterate over the new conx multimap in key order
+	//Iterate over the new conx multimap in key order
 	if (!mm_conn.empty())
 	{
 		std::multimap<std::pair<size_t, std::pair<N_SIZE,N_SIZE>>, GEN_PTR>::iterator it = mm_conn.begin();
@@ -303,6 +347,9 @@ POP_PTR MutatePop(POP_PTR pop, float new_node_percent, float new_link_percent, C
 		hist++;
 	}
 
+	//Mutate weights
+	nexxgen = MutateWeights(std::move(nexxgen), genomeWeightMutation,  weightMutation,  minWeightMutation,maxWeightMutation);
+
 	return nexxgen;
 }
 
@@ -315,10 +362,10 @@ int main()
 	//float delta = Compatibility(1, 1, 1, *(*pop)[0], *(*pop)[1]);
 
 	C_SIZE hist;
-	POP_PTR pop = CreatePop(10, 2, 1, hist);
-	for (int i = 0; i < 2500; i++)
+	POP_PTR pop = CreatePop(100, 2, 1, hist);
+	for (int i = 0; i < 20; i++)
 	{
-		pop = MutatePop(std::move(pop), 0.25, 0.25, hist);
+		pop = MutatePop(std::move(pop), 0.25, 0.25, 0.8, 0.9, 0.5, 1.5, hist);
 		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
 	}
 	//size_t type0 = pop->at(0)->evolutionHash;
