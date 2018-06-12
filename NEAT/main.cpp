@@ -592,8 +592,40 @@ POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const
 	//Create an entire new gen
 	POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
 
-	//Select MVPS
+	//Generate a map to all the different species
+	auto pop_it_begin = pop->begin();
+	auto pop_it = pop_it_begin;
+	auto pop_it_end = pop->end();
+	std::vector<std::pair<uint16_t, uint16_t>> speciesIndex;
+	speciesIndex.push_back({(*pop_it)->species, 0});
 
+	while (pop_it < pop_it_end)
+	{
+		if ((*pop_it)->species != speciesIndex.back().first)
+		{
+			speciesIndex.push_back({ (*pop_it)->species, std::distance(pop_it_begin,pop_it) });
+		}
+		pop_it++;
+	}
+
+	//Select MVPS
+	uint16_t nb_species = census.size();
+	auto speciesIndex_it_begin = speciesIndex.begin();
+	auto speciesIndex_it = speciesIndex_it_begin;
+	auto speciesIndex_it_end = speciesIndex.end();
+	for (uint16_t species = 0; species < nb_species; species++)
+	{
+		//Select the best from each species with at least 5
+		if (census[species] >= 5)
+		{	//Should be safe, we just created the index
+			while (speciesIndex_it->first != species) speciesIndex_it++;
+			auto left = pop_it_begin + speciesIndex_it->second;
+			auto right = (speciesIndex_it + 1 == speciesIndex_it_end) ? pop_it_end : (pop_it_begin + (speciesIndex_it+1)->second);
+			auto mvp_index = std::max(left, right, [](const auto gen1, const auto gen2) {return (*gen1)->fitness < (*gen2)->fitness; });
+			auto mvp_clone = std::make_unique<GEN_PTR>(mvp_index);
+			nexxgen->push_back(std::move(mvp_clone));
+		}
+	}
 
 	return pop;
 }
