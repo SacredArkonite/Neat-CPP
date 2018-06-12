@@ -407,10 +407,6 @@ POP_PTR ClassifyGenomes(POP_PTR encyclopedia, POP_PTR pop, std::vector<uint16_t>
 		bool found = false;
 		for (auto dic = dic_begin; dic != dic_end; dic++)
 		{
-			debug_counter++;
-			if (debug_counter == 141) {
-				std::cout << "WTF \n";
-			}
 			if (Compatibility(c1, c2, c3, **it, **dic) < dt)
 			{
 				uint16_t specieNb = dic - dic_begin;
@@ -428,8 +424,9 @@ POP_PTR ClassifyGenomes(POP_PTR encyclopedia, POP_PTR pop, std::vector<uint16_t>
 		}
 	}
 	
-	std::sort(pop->begin(), pop->end());
-
+	std::sort(pop->begin(), pop->end(), [](const GEN_PTR& gen1, const GEN_PTR& gen2)
+	{ return (gen1->species == gen2->species) ? (gen1->fitness > gen2->fitness) :(gen1->species < gen2->species); });
+	
 	return pop;
 }
 
@@ -468,7 +465,6 @@ GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableC
 	uint16_t dis_offset_2 = 0;
 
 	GEN_PTR offspring = std::make_unique<Genome>();
-
 	while (it1 < end1 && it2 < end2)
 	{
 		if (genome1->history[it1] == genome2->history[it2])
@@ -489,7 +485,7 @@ GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableC
 			if (dis_it2 != dis_it2_end && *dis_it2 == it2)
 			{
 				//Do not add if already there from the other parent
-				if(offspring->disabledIndex.back() != it2 + dis_offset_2)
+				if(offspring->disabledIndex.size()>0 && offspring->disabledIndex.back() != it2 + dis_offset_2)
 					offspring->disabledIndex.push_back(it2 + dis_offset_2);
 				dis_it2++;
 			}
@@ -583,28 +579,64 @@ GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableC
 			[](uint16_t enableChance) {return (rng.RngProb()<enableChance); }),
 		offspring->disabledIndex.end());
 
+
+	//Collect the nodes because we forgot somehow...
+	std::vector<N_SIZE> nodeCollector = offspring->sourceNode;
+	nodeCollector.insert(nodeCollector.end(), offspring->destNode.begin(), offspring->destNode.end());
+
+	std::vector<N_SIZE> inputNodeCollector = genome1->inputNode;
+	inputNodeCollector.insert(inputNodeCollector.end(), genome2->inputNode.begin(), genome2->inputNode.end());
+
+	std::vector<N_SIZE> outputNodeCollector = genome1->outputNode;
+	outputNodeCollector.insert(outputNodeCollector.end(), genome2->outputNode.begin(), genome2->outputNode.end());
+
+	//remove duplicates
+	sort(nodeCollector.begin(), nodeCollector.end());
+	nodeCollector.erase(unique(nodeCollector.begin(), nodeCollector.end()), nodeCollector.end());
+
+	sort(inputNodeCollector.begin(), inputNodeCollector.end());
+	inputNodeCollector.erase(unique(inputNodeCollector.begin(), inputNodeCollector.end()), inputNodeCollector.end());
+
+	sort(outputNodeCollector.begin(), outputNodeCollector.end());
+	outputNodeCollector.erase(unique(outputNodeCollector.begin(), outputNodeCollector.end()), outputNodeCollector.end());
+
+	//Add to offspring
+	offspring->inputNode = inputNodeCollector;
+	offspring->outputNode = outputNodeCollector;
+	offspring->nodes = nodeCollector.size();
+
+	//Create the new Hash
+	offspring->evolutionHash = hashGenetics(offspring->history);
+
 	return offspring;
 }
 
 
-POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const float noCrossover, const float enableChance)
+POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const float noCrossover, const float enableGeneChance)
 {
 	//Create an entire new gen
 	POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
 
-	//Generate a map to all the different species
+	//Generate a map to all the different species and calculate species global fitness
 	auto pop_it_begin = pop->begin();
 	auto pop_it = pop_it_begin;
 	auto pop_it_end = pop->end();
 	std::vector<std::pair<uint16_t, uint16_t>> speciesIndex;
+	std::vector<float> speciesFitness;
 	speciesIndex.push_back({(*pop_it)->species, 0});
+	speciesFitness.push_back(0);
+	float populationFitness = 0;
 
 	while (pop_it < pop_it_end)
 	{
 		if ((*pop_it)->species != speciesIndex.back().first)
 		{
 			speciesIndex.push_back({ (*pop_it)->species, std::distance(pop_it_begin,pop_it) });
+			speciesFitness.push_back(0);
 		}
+		speciesFitness.back() += (*pop_it)->fitness;
+		populationFitness += (*pop_it)->fitness;
+
 		pop_it++;
 	}
 
@@ -620,14 +652,95 @@ POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const
 		{	//Should be safe, we just created the index
 			while (speciesIndex_it->first != species) speciesIndex_it++;
 			auto left = pop_it_begin + speciesIndex_it->second;
-			auto right = (speciesIndex_it + 1 == speciesIndex_it_end) ? pop_it_end : (pop_it_begin + (speciesIndex_it+1)->second);
-			auto mvp_index = std::max(left, right, [](const auto gen1, const auto gen2) {return (*gen1)->fitness < (*gen2)->fitness; });
-			auto mvp_clone = std::make_unique<GEN_PTR>(mvp_index);
+			auto right = (speciesIndex_it + 1 == speciesIndex_it_end) ? pop_it_end : (pop_it_begin + (speciesIndex_it + 1)->second);
+
+			auto mvp_index = std::max_element(left, right,
+				[]
+				(const GEN_PTR& gen1, const GEN_PTR& gen2)
+				{return gen1->fitness < gen2->fitness; });
+
+			auto mvp_clone = std::make_unique<Genome>(**mvp_index);
 			nexxgen->push_back(std::move(mvp_clone));
 		}
 	}
 
-	return pop;
+	//Calculate how many offsprings per species we want
+	uint16_t pop_size = pop->size() - nexxgen->size();
+	std::vector<uint16_t> requiredChilds = std::vector<uint16_t>();
+	int16_t spotsLeft = pop_size;
+	for each (float speciesFit in speciesFitness)
+	{
+		uint16_t quantity = (int)(speciesFit / populationFitness * pop_size)+1;
+		requiredChilds.push_back(quantity);
+		spotsLeft -= quantity;
+	}
+	uint16_t speciesCount = requiredChilds.size();
+	//Fill leftover or remove excess at random
+	if (spotsLeft < 0) 
+	{
+		for (; spotsLeft != 0; spotsLeft++) 
+		{
+			requiredChilds[rng.LessThan(speciesCount)] -= 1;
+			//Species should DIE here!!
+			requiredChilds.erase(std::remove(requiredChilds.begin(), requiredChilds.end(), 0), requiredChilds.end());
+			speciesCount = requiredChilds.size();
+
+		}
+	}
+	else if (spotsLeft > 0)
+	{
+		for (; spotsLeft != 0; spotsLeft--)
+		{
+			requiredChilds[rng.LessThan(speciesCount)] += 1;
+		}
+	}
+
+	//Create offsprings for each species
+	for (uint16_t species = 0; species < speciesCount; species++)
+	{
+		for (int childCount = 0; childCount < requiredChilds[species]; childCount++)
+		{
+			//Mutation without crossover
+			if (rng.RngProb() < noCrossover)
+			{
+				//Select 1 genome at random based on fitness wheel
+				auto left = pop->begin() + speciesIndex[species].first;
+				float fitnessArrow = rng.RngProb() * speciesFitness[species];
+				while (fitnessArrow >(*left)->fitness)
+				{
+					fitnessArrow -= (*left)->fitness;
+					left++;
+				}
+				nexxgen->push_back(std::make_unique<Genome>(**left));
+			}
+			else
+			{
+				//Select 2 genomes at random based on fitness wheel
+				auto left = pop->begin() + speciesIndex[species].first;
+				float fitnessArrow = rng.RngProb() * speciesFitness[species];
+				while (fitnessArrow > (*left)->fitness)
+				{
+					fitnessArrow -= (*left)->fitness;
+					left++;
+				}
+				GEN_PTR parent1 = std::make_unique<Genome>(**left);
+
+				left = pop->begin() + speciesIndex[species].first;
+				fitnessArrow = rng.RngProb() * speciesFitness[species];
+				while (fitnessArrow > (*left)->fitness)
+				{
+					fitnessArrow -= (*left)->fitness;
+					left++;
+				}
+				GEN_PTR parent2 = std::make_unique<Genome>(**left);
+
+				//make a child
+				nexxgen->push_back(Mate(parent1, parent2, enableGeneChance));
+			}
+		}
+	}
+
+	return nexxgen;
 }
 
 //XOR
@@ -755,19 +868,19 @@ int main()
 
 	//Create initial population
 	C_SIZE hist;
-	POP_PTR pop = CreatePop(10, 3, 1, hist);
+	POP_PTR pop = CreatePop(100, 3, 1, hist);
 
 	//Generate species dictionnary
 	POP_PTR speciesEncyclopedia = std::make_unique<std::vector<GEN_PTR>>();;
 	speciesEncyclopedia->push_back(std::make_unique<Genome>(*(pop->at(rng.LessThan(10)))));
 	std::vector<uint16_t> census;
 
-	for (int i = 0; i < 101; i++)
+	for (int i = 0; i < 80; i++)
 	{
 		//Calculate Fitness / Simulate
 		pop = CalculateFitness(std::move(pop));
 
-		//Adjust Fitness
+		//Adjust Fitness (Explicit fitness sharing)
 
 
 		//Speciate
@@ -788,7 +901,14 @@ int main()
 
 		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
 	}
-	
+
+	//Calculate Fitness / Simulate
+	pop = CalculateFitness(std::move(pop));
+
+	for (auto it = pop->begin(); it < pop->end(); it++)
+	{
+		std::cout << (*it)->fitness << std::endl;
+	}
 	char w;
 	std::cin>>w;
 	return 0;
