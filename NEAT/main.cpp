@@ -767,13 +767,13 @@ std::vector<float> GetSimFitness(int frame, std::vector<float> action)
 	switch (frame % 4)
 	{
 	case 0:
-		return { action[0] + 0 };
+		return { action[0] > 0.5f ? 1.0f : 0.0f };
 	case 1:
-		return { action[0] - 1 };
+		return { action[0] < 0.5f ? 1.0f : 0.0f };
 	case 2:
-		return { action[0] - 1 };
+		return { action[0] < 0.5f ? 1.0f : 0.0f };
 	case 3:
-		return { action[0] + 0 };
+		return { action[0] > 0.5f ? 1.0f : 0.0f };
 	default:
 		break;
 	}
@@ -830,7 +830,7 @@ std::vector<float> Propagate(const std::vector<float>& input, const GEN_PTR& gen
 
 float Simulate(const GEN_PTR& gen)
 {
-	float fitness = 1;
+	float fitness = 0;
 
 	for (int frame = 0; frame < 4; frame++) {
 		std::vector<float> inputData = GetSimData(frame);
@@ -838,10 +838,10 @@ float Simulate(const GEN_PTR& gen)
 		std::vector<float> delta = GetSimFitness(frame, actions);
 
 		for each (float d in delta)
-			fitness += d*d;
+			fitness += d;
 	}
 
-	return 1 / fitness;
+	return fitness;
 }
 
 POP_PTR CalculateFitness(POP_PTR pop)
@@ -868,14 +868,14 @@ int main()
 
 	//Create initial population
 	C_SIZE hist;
-	POP_PTR pop = CreatePop(100, 3, 1, hist);
+	POP_PTR pop = CreatePop(150, 3, 1, hist);
 
 	//Generate species dictionnary
 	POP_PTR speciesEncyclopedia = std::make_unique<std::vector<GEN_PTR>>();;
 	speciesEncyclopedia->push_back(std::make_unique<Genome>(*(pop->at(rng.LessThan(10)))));
 	std::vector<uint16_t> census;
 
-	for (int i = 0; i < 80; i++)
+	for (int i = 0; i < 30; i++)
 	{
 		//Calculate Fitness / Simulate
 		pop = CalculateFitness(std::move(pop));
