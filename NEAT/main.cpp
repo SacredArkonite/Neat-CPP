@@ -12,7 +12,7 @@ RNG rng;
 typedef uint8_t N_SIZE;
 typedef uint16_t N_SIZEx2;
 typedef uint32_t C_SIZE;
-#define MAX_NODES 0xFF
+#define MAX_NODES 0x07
 #define MAX_CONNECTIONS 1500
 
 struct Genome
@@ -834,7 +834,7 @@ float Simulate(const GEN_PTR& gen)
 
 	for (int frame = 0; frame < 4; frame++) {
 		std::vector<float> inputData = GetSimData(frame);
-		std::vector<float> actions = Propagate(inputData, gen, 5);
+		std::vector<float> actions = Propagate(inputData, gen, 2);
 		std::vector<float> delta = GetSimFitness(frame, actions);
 
 		for each (float d in delta)
@@ -851,6 +851,43 @@ POP_PTR CalculateFitness(POP_PTR pop)
 	{
 		(*it)->fitness = Simulate(*it);
 	}
+	return pop;
+}
+
+uint16_t SumSharing(const GEN_PTR& gen, const POP_PTR& pop, const float c1, const float c2, const float c3, const float dt)
+{
+	auto pop_it_begin = pop->begin();
+	auto pop_it = pop_it_begin;
+	auto pop_it_end = pop->end();
+	uint16_t sum = 0;
+	for (; pop_it < pop_it_end; pop_it++)
+	{
+		sum += (Compatibility(c1, c2, c3, *gen, **pop_it) < dt ? 1.0f : 0.0f);
+	}
+	return sum;
+}
+
+POP_PTR ExplicitFitnessSharing(POP_PTR pop, const float c1, const float c2, const float c3, const float dt)
+{
+	//Generate a map to all the different species and calculate species global fitness
+	auto pop_it_begin = pop->begin();
+	auto pop_it = pop_it_begin;
+	auto pop_it_end = pop->end();
+	std::vector<float> newFitness = std::vector<float>();
+
+	//Calculate new fitness
+	for (; pop_it < pop_it_end; pop_it++)
+	{
+		newFitness.push_back((*pop_it)->fitness / SumSharing(*pop_it, pop, c1, c2, c3, dt));
+	}
+
+	//Update fitness
+	int i = 0;
+	for (; pop_it < pop_it_end; pop_it++, i++)
+	{
+		(*pop_it)->fitness = newFitness[i];
+	}
+
 	return pop;
 }
 
@@ -877,17 +914,17 @@ int main()
 
 	for (int i = 0; i < 30; i++)
 	{
-		//Calculate Fitness / Simulate
-		pop = CalculateFitness(std::move(pop));
-
-		//Adjust Fitness (Explicit fitness sharing)
-
-
 		//Speciate
 		pop = ClassifyGenomes(std::move(speciesEncyclopedia), std::move(pop), census, 1, 1, 0, 4);
 
 		//Update encyclopedia for next gen classification
 		speciesEncyclopedia = UpdateEncyclopedia(pop, census);
+
+		//Calculate Fitness / Simulate
+		pop = CalculateFitness(std::move(pop));
+
+		//Adjust Fitness (Explicit fitness sharing)
+		pop = ExplicitFitnessSharing(std::move(pop), 1.0, 1.0, 0.4, 3.0);
 
 		//Reproduce
 		pop = CreateOffsprings(std::move(pop), census, 0.25, 0.25);
