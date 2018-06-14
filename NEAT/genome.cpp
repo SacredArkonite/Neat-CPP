@@ -15,10 +15,10 @@ namespace GenomeUtil
 		genome->fitness = 0.0;
 
 		for (N_SIZE i = 0; i < nIns; i++)
-			genome = Mutate::AddInput(std::move(genome), hist);
+			Mutate::AddInput(genome, hist);
 
 		for (N_SIZE j = 0; j < nOuts; j++)
-			genome = Mutate::AddOutput(std::move(genome), hist);
+			Mutate::AddOutput(genome, hist);
 
 		return genome;
 	}
@@ -97,10 +97,10 @@ namespace GenomeUtil
 	GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableChance)
 	{
 		//Create offspring. genome1 has priority on weights
-		auto it1 = 0;
-		auto it2 = 0;
-		auto end1 = genome1->history.size();
-		auto end2 = genome2->history.size();
+		unsigned int it1 = 0;
+		unsigned int it2 = 0;
+		unsigned int end1 = genome1->history.size();
+		unsigned int end2 = genome2->history.size();
 
 		auto dis_it1 = genome1->disabledIndex.begin();
 		auto dis_it2 = genome2->disabledIndex.begin();

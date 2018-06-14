@@ -1,7 +1,7 @@
 #pragma once
 #include <random>
 
-#define FIXED_SEED 0xab97ab57
+#define FIXED_SEED 0x42069420
 
 namespace RNG
 {

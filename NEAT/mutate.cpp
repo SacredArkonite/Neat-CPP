@@ -6,18 +6,21 @@
 
 namespace Mutate
 {
-	GEN_PTR AddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, const C_SIZE histNb)
+	void AddConnection(const GEN_PTR& genome, const N_SIZE from, const N_SIZE to, const C_SIZE histNb)
 	{
-		genome->history.push_back(histNb);
-		genome->sourceNode.push_back(from);
-		genome->destNode.push_back(to);
-		genome->weights.push_back(RNG::RngWeight());
-		genome->evolutionHash = Hash::HashGenetics(genome->evolutionHash, histNb);
-
-		return genome;
+		//add only if the destination is not an input or the source an output
+		if (std::find(genome->inputNode.begin(), genome->inputNode.end(), to) == genome->inputNode.end()
+			&& std::find(genome->outputNode.begin(), genome->outputNode.end(), from) == genome->outputNode.end())
+		{
+			genome->history.push_back(histNb);
+			genome->sourceNode.push_back(from);
+			genome->destNode.push_back(to);
+			genome->weights.push_back(RNG::RngWeight());
+			genome->evolutionHash = Hash::HashGenetics(genome->evolutionHash, histNb);
+		}
 	}
 
-	GEN_PTR AddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
+	void AddNode(const GEN_PTR& genome, const C_SIZE index, const C_SIZE histNb)
 	{
 		//Don't forget to disable the old connection!!
 		genome->disabledIndex.push_back(index);
@@ -34,32 +37,24 @@ namespace Mutate
 
 		genome->evolutionHash = Hash::HashGenetics(genome->evolutionHash, histNb, histNb + 1);
 		genome->nodes++;
-
-		return genome;
 	}
 
-	GEN_PTR AddInput(GEN_PTR genome, C_SIZE& histNb)
+	void AddInput(const GEN_PTR& genome, C_SIZE& histNb)
 	{
 		genome->inputNode.push_back(genome->nodes);
 		for (int i = genome->outputNode.size() - 1; i >= 0; i--) {
-			genome = AddConnection(std::move(genome), genome->nodes, genome->outputNode[i], histNb++);
+			AddConnection(genome, genome->nodes, genome->outputNode[i], histNb++);
 		}
-
 		genome->nodes++;
-
-		return genome;
 	}
 
-	GEN_PTR AddOutput(GEN_PTR genome, C_SIZE& histNb)
+	void AddOutput(const GEN_PTR& genome, C_SIZE& histNb)
 	{
 		genome->outputNode.push_back(genome->nodes);
 		for (int i = genome->inputNode.size() - 1; i >= 0; i--) {
-			genome = AddConnection(std::move(genome), genome->inputNode[i], genome->nodes, histNb++);
+			AddConnection(genome, genome->inputNode[i], genome->nodes, histNb++);
 		}
-
 		genome->nodes++;
-
-		return genome;
 	}
 
 }

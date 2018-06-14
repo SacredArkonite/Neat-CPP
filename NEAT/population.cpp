@@ -15,8 +15,13 @@ Population::Population(const unsigned int popSize, const N_SIZE inputs, const N_
 {
 	//Generate a vector of genome
 	pop = std::make_unique<std::vector<GEN_PTR>>();
+	speciesNumber = 0;
+	innovationNumber = 0;
+	generation = 0;
+	highestFitness = 0;
+	VIPCount = 0;
 
-	for (int i = 0; i < popSize; i++)
+	for (unsigned int i = 0; i < popSize; i++)
 	{
 		pop->push_back(GenomeUtil::CreateGenome(inputs, outputs));
 	}
@@ -41,8 +46,9 @@ void Population::SortBySpeciesFitness()
 	
 void Population::ClassifyGenomes(float c1, const float c2, const float c3, const float dt)
 {
-	//Update all the genome's species, build a census and order the population by species
-	census = std::vector<unsigned int>(encyclopedia->size());
+	//Update all the genome's species, update the encyclopedia and build a census
+	census = std::vector<unsigned int>(speciesNumber + 1);
+
 	auto it_end = pop->end();
 	for (auto it = pop->begin(); it != it_end; it++)
 	{
@@ -53,30 +59,29 @@ void Population::ClassifyGenomes(float c1, const float c2, const float c3, const
 		{
 			if (GenomeUtil::Compatibility(c1, c2, c3, **it, **dic) < dt)
 			{
-				uint16_t specieNb = dic - dic_begin;
-				(*it)->species = specieNb;
-				census[specieNb] += 1;
+				uint16_t speciesNb = (*dic)->species;
+				(*it)->species = speciesNb;
+				census[speciesNb] += 1;
 				found = true;
 				break;
 			}
 		}
 		if (!found)
 		{
+			(*it)->species = ++speciesNumber;
 			encyclopedia->push_back(std::make_unique<Genome>(**it));
-			(*it)->species = encyclopedia->size();
 			census.push_back(1);
 		}
 	}
-	SortBySpeciesFitness();
+
+	//Refresh to randomly migrate the the species references in the search space
+	RefreshEncyclopedia();
 }
 	
-void Population::UpdateEncyclopedia()
+void Population::RefreshEncyclopedia()
 {
-	//Select a random individual for each species
-		
-	encyclopedia = std::make_unique<std::vector<GEN_PTR>>();
-		
-
+	//Refresh the encyclopedia by selecting a new random genome of each available species
+	
 	uint16_t specieLocation = 0;
 
 	auto it_end = census.end();
@@ -84,16 +89,17 @@ void Population::UpdateEncyclopedia()
 	{
 		if (*it != 0) {
 			GEN_PTR specimen = std::make_unique<Genome>(*(pop->at(specieLocation + RNG::LessThan(*it))));
-			encyclopedia->push_back(std::move(specimen));
+			encyclopedia->at(specimen->species) = std::move(specimen);
 			specieLocation += *it;
 		}
 	}
 }
-	
+
 void Population::CalculateFitness()
 {
-	Fitness::CalculateFitness(pop);
+	best = Fitness::CalculateFitness(pop);
 	Fitness::CalculateFitness(encyclopedia);
+	highestFitness = best->fitness - 1/( 2* best->nodes + best->history.size());
 }
 
 void Population::ExplicitFitnessSharing(const float c1, const float c2, const float c3, const float dt)
@@ -103,6 +109,11 @@ void Population::ExplicitFitnessSharing(const float c1, const float c2, const fl
 
 void Population::CreateOffsprings(const float noCrossover, const float enableGeneChance)
 {
+	generation++;
+	VIPCount = 0;
+	//Start by sorting the population by species/fitness
+	SortBySpeciesFitness();
+
 	//Create an entire new gen
 	POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
 
@@ -130,7 +141,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 	}
 
 	//Select MVPS
-	uint16_t nb_species = census.size();
+	unsigned int nb_species = census.size();
 	auto speciesIndex_it_begin = speciesIndex.begin();
 	auto speciesIndex_it = speciesIndex_it_begin;
 	auto speciesIndex_it_end = speciesIndex.end();
@@ -150,11 +161,12 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 
 			auto mvp_clone = std::make_unique<Genome>(**mvp_index);
 			nexxgen->push_back(std::move(mvp_clone));
+			VIPCount++;
 		}
 	}
 
 	//Calculate how many offsprings per species we want
-	uint16_t pop_size = pop->size() - nexxgen->size();
+	unsigned int pop_size = pop->size() - nexxgen->size();
 	std::vector<uint16_t> requiredChilds = std::vector<uint16_t>();
 	int16_t spotsLeft = pop_size;
 	for each (float speciesFit in speciesFitness)
@@ -163,7 +175,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 		requiredChilds.push_back(quantity);
 		spotsLeft -= quantity;
 	}
-	uint16_t speciesCount = requiredChilds.size();
+	unsigned int speciesCount = requiredChilds.size();
 	//Fill leftover or remove excess at random
 	if (spotsLeft < 0)
 	{
@@ -194,8 +206,8 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 			if (RNG::RngProb() < noCrossover)
 			{
 				//Select 1 genome at random based on fitness wheel
-				auto left = pop->begin() + speciesIndex[species].second;
-				float fitnessArrow = RNG::RngProb() * speciesFitness[species];
+				auto left = pop->begin() + (speciesIndex[species].second);
+				float fitnessArrow = RNG::RngProb() * speciesFitness[species] / 2; //Only chose from the top 50% of assets
 				while (fitnessArrow >(*left)->fitness)
 				{
 					fitnessArrow -= (*left)->fitness;
@@ -207,7 +219,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 			{
 				//Select 2 genomes at random based on fitness wheel
 				auto left = pop->begin() + speciesIndex[species].second;
-				float fitnessArrow = RNG::RngProb() * speciesFitness[species];
+				float fitnessArrow = RNG::RngProb() * speciesFitness[species] / 2; //Only chose from the top 50% of assets
 				while (fitnessArrow > (*left)->fitness)
 				{
 					fitnessArrow -= (*left)->fitness;
@@ -216,7 +228,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 				GEN_PTR parent1 = std::make_unique<Genome>(**left);
 
 				left = pop->begin() + speciesIndex[species].second;
-				fitnessArrow = RNG::RngProb() * speciesFitness[species];
+				fitnessArrow = RNG::RngProb() * speciesFitness[species] / 2; //Only chose from the top 50% of assets
 				while (fitnessArrow > (*left)->fitness)
 				{
 					fitnessArrow -= (*left)->fitness;
@@ -250,14 +262,18 @@ void Population::MutateStructure(float new_node_percent, float new_link_percent)
 
 	auto end = (*pop).end();
 
+	//Ignore MVPS
+	for (auto it = (*pop).begin(); it < (*pop).begin() + VIPCount; it++)
+		nexxgen->push_back(std::move(*it));
+
 	//Distribute the genome with their transform into the maps
-	for (auto it = (*pop).begin(); it < end; it++)
+	for (auto it = (*pop).begin() + VIPCount; it < end; it++)
 	{
 		float rn = RNG::RngProb();
 		if (rn < new_node_percent)
 		{	// Mutate Add Node
 			//Do not mutate if we reached the max number of nodes
-			if ((*it)->nodes == MAX_NODES)
+			if ((*it)->nodes >= MAX_NODES)
 			{
 				nexxgen->push_back(std::move(*it));
 			}
@@ -272,7 +288,7 @@ void Population::MutateStructure(float new_node_percent, float new_link_percent)
 		else if (rn < new_link_percent)
 		{	// Mutate Add Connection
 			//Do not mutate if we reached the max number of connections
-			if ((*it)->sourceNode.size() == MAX_NODES)
+			if ((*it)->sourceNode.size() >= MAX_CONNECTIONS)
 			{
 				nexxgen->push_back(std::move(*it));
 			}
@@ -315,7 +331,8 @@ void Population::MutateStructure(float new_node_percent, float new_link_percent)
 				last_key = it->first;
 				innovationNumber += 2;
 			}
-			nexxgen->push_back(Mutate::AddNode(std::move(it->second), last_key.second, innovationNumber));
+			Mutate::AddNode(it->second, last_key.second, innovationNumber);
+			nexxgen->push_back(std::move(it->second));
 		}
 
 		innovationNumber += 2;
@@ -334,7 +351,8 @@ void Population::MutateStructure(float new_node_percent, float new_link_percent)
 				last_key = it->first;
 				innovationNumber++;
 			}
-			nexxgen->push_back(Mutate::AddConnection(std::move(it->second), last_key.second.first, last_key.second.second, innovationNumber));
+			Mutate::AddConnection(it->second, last_key.second.first, last_key.second.second, innovationNumber);
+			nexxgen->push_back(std::move(it->second));
 		}
 		innovationNumber++;
 	}
@@ -348,7 +366,7 @@ void Population::MutateWeights(float genomeMutationProb, float weightMutationPro
 	int c = 0;
 
 	auto pop_end = pop->end();
-	for (auto it = pop->begin(); it != pop_end; it++) {
+	for (auto it = pop->begin() + VIPCount; it != pop_end; it++) {
 		//Mutate the genome?
 		if (RNG::RngProb() < genomeMutationProb)
 		{
@@ -377,6 +395,11 @@ void Population::PrintFitness()
 	CalculateFitness();
 	for (auto it = pop->begin(); it < pop->end(); it++)
 	{
-		std::cout << (*it)->fitness << std::endl;
+		std::cout << (*it)->fitness * (2 * (*it)->nodes + (*it)->history.size()) << std::endl;
 	}
+}
+
+void Population::PrintHighestFitness()
+{
+	std::cout << "GEN " << generation << " Highest fitness " << highestFitness << std::endl;
 }

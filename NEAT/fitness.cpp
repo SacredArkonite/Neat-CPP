@@ -5,6 +5,8 @@
 #include "phenome.h"
 #include "genome.h"
 
+#include <iostream>
+
 namespace Fitness
 {
 
@@ -20,17 +22,24 @@ namespace Fitness
 			for each (float d in delta)
 				fitness += d;
 		}
-
 		return fitness;
 	}
 
-	void CalculateFitness(const POP_PTR& pop)
+	GEN_PTR CalculateFitness(const POP_PTR& pop)
 	{
+		float highestFitness = 0;
+		GEN_PTR best;
 		auto it_end = pop->end();
 		for (auto it = pop->begin(); it < it_end; it++)
 		{
-			(*it)->fitness = Simulate(*it);
+			float fitness = Simulate(*it);
+			(*it)->fitness = fitness + 1/(2*(*it)->nodes + (*it)->history.size()); //add the size as a second parameter 
+			if (highestFitness < fitness) {
+				highestFitness = fitness;
+				best = std::make_unique<Genome>(**it);
+			}
 		}
+		return best;
 	}
 
 	uint16_t SumSharing(const GEN_PTR& gen, const POP_PTR& pop, const float c1, const float c2, const float c3, const float dt)
@@ -41,7 +50,7 @@ namespace Fitness
 		uint16_t sum = 0;
 		for (; pop_it < pop_it_end; pop_it++)
 		{
-			sum += (GenomeUtil::Compatibility(c1, c2, c3, *gen, **pop_it) < dt ? 1.0f : 0.0f);
+			sum += (GenomeUtil::Compatibility(c1, c2, c3, *gen, **pop_it) < dt ? 1 : 0);
 		}
 		return sum;
 	}

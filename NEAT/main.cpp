@@ -12,37 +12,40 @@ int main()
 	//Create initial population
 	Population pop(150, 3, 1);
 
-	//Generate species dictionnary
+	//Speciate
+	pop.ClassifyGenomes(1.0f, 1.0f, 0.4f, 3.0f);
+
+	//Calculate Fitness / Simulate
+	pop.CalculateFitness();
+
+	//Adjust Fitness (Explicit fitness sharing)
+	pop.ExplicitFitnessSharing(1.0f, 1.0f, 0.4f, 3.0f);
 	
-	for (int i = 0; i < 30; i++)
+	for (int i = 0; i < 25; i++)
 	{
-		//Speciate
-		pop.ClassifyGenomes(1.0, 1.0, 0.4, 3.0);
-
-		//Update encyclopedia for next gen classification
-		pop.UpdateEncyclopedia();
-		
-		//Calculate Fitness / Simulate
-		pop.CalculateFitness();
-
-		//Adjust Fitness (Explicit fitness sharing)
-		pop.ExplicitFitnessSharing(1.0, 1.0, 0.4, 3.0);
 
 		//Reproduce
 		pop.CreateOffsprings(0.25, 0.25);
 		
 		//Mutate Structure
-		pop.MutateStructure(0.003, 0.005);
+		pop.MutateStructure(0.03f, 0.05f);
 		
 		//Mutate weights
-		pop.MutateWeights(0.8, 0.9, 0.5, 1.5);
-		
+		pop.MutateWeights(0.8f, 0.9f, 0.5f, 1.5f);
 
-		if (i%10 == 0) std::cout << "GEN # " << i << std::endl;
+		//Speciate
+		pop.ClassifyGenomes(1.0f, 1.0f, 0.4f, 3.0f);
+
+		//Calculate Fitness / Simulate
+		pop.CalculateFitness();
+
+		//Adjust Fitness (Explicit fitness sharing)
+		pop.ExplicitFitnessSharing(1.0f, 1.0f, 0.4f, 3.0f);
+
+		pop.PrintHighestFitness();
 	}
 	
 	//Calculate Fitness / Simulate
-	
 	pop.PrintFitness();
 
 	char w;

@@ -25,16 +25,16 @@ namespace Phenome
 		//Let propagate a few steps
 		auto disabled_it = gen->disabledIndex.begin();
 		auto disabled_it_end = gen->disabledIndex.end();
-		for (int i = 0; i < maxSteps; i++) {
+		for (unsigned int i = 0; i < maxSteps; i++) {
 			//1 step
-			for (int c = 0; c < gen->history.size(); c++) {
+			for (unsigned int c = 0; c < gen->history.size(); c++) {
 				if (disabled_it != disabled_it_end && *disabled_it == c)
 					disabled_it++;
 				else
 					temp_nodes[gen->destNode[c]] += (nodes[gen->sourceNode[c]] * gen->weights[c]);
 			}
 			//Activation function
-			for (int c = 0; c < nodes.size(); c++) {
+			for (unsigned int c = 0; c < nodes.size(); c++) {
 				nodes[c] = ActivationFunction(temp_nodes[c]);
 			}
 		}

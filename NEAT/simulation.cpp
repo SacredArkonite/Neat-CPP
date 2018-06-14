@@ -10,15 +10,15 @@ namespace Simulation
 		switch (frame % 4)
 		{
 		case 0:
-			return { 0,0,0 };
+			return { 1,-1,-1 };
 		case 1:
-			return { 0,0,1 };
+			return { 1,-1,1 };
 		case 2:
-			return { 0,1,0 };
+			return { 1,1,-1 };
 		case 3:
-			return { 0,1,1 };
+			return { 1,1,1 };
 		default:
-			break;
+			return {};
 		}
 	}
 
@@ -28,15 +28,15 @@ namespace Simulation
 		switch (frame % 4)
 		{
 		case 0:
-			return { action[0] > 0.5f ? 1.0f : 0.0f };
+			return { action[0] > 0.0f ? 1.0f : 1 / (2.0f - action[0]) };
 		case 1:
-			return { action[0] < 0.5f ? 1.0f : 0.0f };
+			return { action[0] < 0.0f ? 1.0f : 1 / (2.0f + action[0]) };
 		case 2:
-			return { action[0] < 0.5f ? 1.0f : 0.0f };
+			return { action[0] < 0.0f ? 1.0f : 1 / (2.0f + action[0]) };
 		case 3:
-			return { action[0] > 0.5f ? 1.0f : 0.0f };
+			return { action[0] > 0.0f ? 1.0f : 1 / (2.0f - action[0]) };
 		default:
-			break;
+			return { 0 };
 		}
 	}
 
