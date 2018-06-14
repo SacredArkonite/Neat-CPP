@@ -21,14 +21,13 @@ int main()
 	//Adjust Fitness (Explicit fitness sharing)
 	pop.ExplicitFitnessSharing(1.0f, 1.0f, 0.4f, 3.0f);
 	
-	for (int i = 0; i < 25; i++)
+	for (int i = 0; i < 250; i++)
 	{
-
 		//Reproduce
 		pop.CreateOffsprings(0.25, 0.25);
 		
 		//Mutate Structure
-		pop.MutateStructure(0.03f, 0.05f);
+		pop.MutateStructure(0.003f, 0.005f);
 		
 		//Mutate weights
 		pop.MutateWeights(0.8f, 0.9f, 0.5f, 1.5f);

@@ -99,20 +99,21 @@ void Population::CalculateFitness()
 {
 	best = Fitness::CalculateFitness(pop);
 	Fitness::CalculateFitness(encyclopedia);
-	highestFitness = best->fitness - 1/( 2* best->nodes + best->history.size());
+	highestFitness = best->fitness -1 / (2 * best->nodes + best->history.size());
 }
 
 void Population::ExplicitFitnessSharing(const float c1, const float c2, const float c3, const float dt)
 {
 	Fitness::ExplicitFitnessSharing(pop, c1, c2, c3, dt);
+
+	//Sort the population by species/fitness
+	SortBySpeciesFitness();
 }
 
 void Population::CreateOffsprings(const float noCrossover, const float enableGeneChance)
 {
 	generation++;
 	VIPCount = 0;
-	//Start by sorting the population by species/fitness
-	SortBySpeciesFitness();
 
 	//Create an entire new gen
 	POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
@@ -199,7 +200,6 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 	//Create offsprings for each species
 	for (uint16_t species = 0; species < speciesCount; species++)
 	{
-		std::cout << "";
 		for (int childCount = 0; childCount < requiredChilds[species]; childCount++)
 		{
 			//Mutation without crossover
@@ -373,7 +373,7 @@ void Population::MutateWeights(float genomeMutationProb, float weightMutationPro
 			auto i_w_end = (*it)->weights.end();
 			for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
 			{
-				//Mutate the weight by scaling?
+				//Mutate the weight by scaling or +/-
 				if (RNG::RngProb() < weightMutationProb)
 				{
 					(*i_w) *= RNG::RngRange();

@@ -141,11 +141,15 @@ namespace GenomeUtil
 			else if (genome1->history[it1] < genome2->history[it2])
 			{	//gene1 has disjoint
 
-				//Inherits from genome 1
-				offspring->history.push_back(genome1->history[it1]);
-				offspring->sourceNode.push_back(genome1->sourceNode[it1]);
-				offspring->destNode.push_back(genome1->destNode[it1]);
-				offspring->weights.push_back(genome1->weights[it1]);
+				//Do not add a link if already there
+				if (!CheckIfConnectionExists(offspring, { genome1->sourceNode[it1] ,genome1->destNode[it1] }))
+				{
+					//Inherits from genome 1
+					offspring->history.push_back(genome1->history[it1]);
+					offspring->sourceNode.push_back(genome1->sourceNode[it1]);
+					offspring->destNode.push_back(genome1->destNode[it1]);
+					offspring->weights.push_back(genome1->weights[it1]);
+				}
 
 				//Inherits disabled links
 				if (dis_it1 != dis_it1_end && *dis_it1 == it1)
@@ -160,12 +164,15 @@ namespace GenomeUtil
 			else
 			{	//gene2 has disjoint
 
-				//Inherits from genome 2
-				offspring->history.push_back(genome2->history[it2]);
-				offspring->sourceNode.push_back(genome2->sourceNode[it2]);
-				offspring->destNode.push_back(genome2->destNode[it2]);
-				offspring->weights.push_back(genome2->weights[it2]);
-
+				//Do not add a link if already there
+				if (!CheckIfConnectionExists(offspring, { genome2->sourceNode[it1] ,genome2->destNode[it1] }))
+				{
+					//Inherits from genome 2
+					offspring->history.push_back(genome2->history[it2]);
+					offspring->sourceNode.push_back(genome2->sourceNode[it2]);
+					offspring->destNode.push_back(genome2->destNode[it2]);
+					offspring->weights.push_back(genome2->weights[it2]);
+				}
 				//Inherits disabled links
 				if (dis_it2 != dis_it2_end && *dis_it2 == it2)
 				{
@@ -182,11 +189,15 @@ namespace GenomeUtil
 		//Try for genome1
 		while (it1 < end1)
 		{
-			//Inherits from genome 1
-			offspring->history.push_back(genome1->history[it1]);
-			offspring->sourceNode.push_back(genome1->sourceNode[it1]);
-			offspring->destNode.push_back(genome1->destNode[it1]);
-			offspring->weights.push_back(genome1->weights[it1]);
+			//Do not add a link if already there
+			if (!CheckIfConnectionExists(offspring, { genome1->sourceNode[it1] ,genome1->destNode[it1] }))
+			{
+				//Inherits from genome 1
+				offspring->history.push_back(genome1->history[it1]);
+				offspring->sourceNode.push_back(genome1->sourceNode[it1]);
+				offspring->destNode.push_back(genome1->destNode[it1]);
+				offspring->weights.push_back(genome1->weights[it1]);
+			}
 
 			//Inherits disabled links
 			if (dis_it1 != dis_it1_end && *dis_it1 == it1)
@@ -200,12 +211,15 @@ namespace GenomeUtil
 		//Try for genome2
 		while (it2 < end2)
 		{
-			//Inherits from genome 2
-			offspring->history.push_back(genome2->history[it2]);
-			offspring->sourceNode.push_back(genome2->sourceNode[it2]);
-			offspring->destNode.push_back(genome2->destNode[it2]);
-			offspring->weights.push_back(genome2->weights[it2]);
-
+			//Do not add a link if already there
+			if (!CheckIfConnectionExists(offspring, { genome2->sourceNode[it2] ,genome2->destNode[it2] }))
+			{
+				//Inherits from genome 2
+				offspring->history.push_back(genome2->history[it2]);
+				offspring->sourceNode.push_back(genome2->sourceNode[it2]);
+				offspring->destNode.push_back(genome2->destNode[it2]);
+				offspring->weights.push_back(genome2->weights[it2]);
+			}
 			//Inherits disabled links
 			if (dis_it2 != dis_it2_end && *dis_it2 == it2)
 			{
@@ -244,6 +258,9 @@ namespace GenomeUtil
 
 		sort(outputNodeCollector.begin(), outputNodeCollector.end());
 		outputNodeCollector.erase(unique(outputNodeCollector.begin(), outputNodeCollector.end()), outputNodeCollector.end());
+
+		sort(offspring->disabledIndex.begin(), offspring->disabledIndex.end());
+		offspring->disabledIndex.erase(unique(offspring->disabledIndex.begin(), offspring->disabledIndex.end()), offspring->disabledIndex.end());
 
 		//Add to offspring
 		offspring->inputNode = inputNodeCollector;

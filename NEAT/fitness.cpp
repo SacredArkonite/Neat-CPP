@@ -33,7 +33,7 @@ namespace Fitness
 		for (auto it = pop->begin(); it < it_end; it++)
 		{
 			float fitness = Simulate(*it);
-			(*it)->fitness = fitness + 1/(2*(*it)->nodes + (*it)->history.size()); //add the size as a second parameter 
+			(*it)->fitness = fitness +1 / (2 * (*it)->nodes + (*it)->history.size()); //add the size as a second parameter 
 			if (highestFitness < fitness) {
 				highestFitness = fitness;
 				best = std::make_unique<Genome>(**it);
