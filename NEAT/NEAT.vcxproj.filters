@@ -39,6 +39,9 @@
     <ClCompile Include="fitness.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="genome.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RNG.h">

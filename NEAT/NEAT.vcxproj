@@ -112,6 +112,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="fitness.cpp" />
+    <ClCompile Include="genome.cpp" />
     <ClCompile Include="hasher.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mutate.cpp" />

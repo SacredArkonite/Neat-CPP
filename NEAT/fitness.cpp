@@ -3,6 +3,7 @@
 #include "population.h"
 #include "simulation.h"
 #include "phenome.h"
+#include "genome.h"
 
 namespace Fitness
 {
@@ -40,7 +41,7 @@ namespace Fitness
 		uint16_t sum = 0;
 		for (; pop_it < pop_it_end; pop_it++)
 		{
-			sum += (Population::Compatibility(c1, c2, c3, *gen, **pop_it) < dt ? 1.0f : 0.0f);
+			sum += (GenomeUtil::Compatibility(c1, c2, c3, *gen, **pop_it) < dt ? 1.0f : 0.0f);
 		}
 		return sum;
 	}

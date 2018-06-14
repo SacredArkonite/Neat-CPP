@@ -17,7 +17,7 @@ int main()
 	for (int i = 0; i < 30; i++)
 	{
 		//Speciate
-		pop.ClassifyGenomes(1, 1, 0, 4);
+		pop.ClassifyGenomes(1.0, 1.0, 0.4, 3.0);
 
 		//Update encyclopedia for next gen classification
 		pop.UpdateEncyclopedia();

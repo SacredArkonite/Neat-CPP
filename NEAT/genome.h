@@ -8,18 +8,6 @@
 
 struct Genome
 {
-	//Genome(const Genome & src) = default;
-	/*sourceNode(src.sourceNode),
-	destNode(src.destNode),
-	history(src.history),
-	disabledIndex(src.disabledIndex),
-	weights(src.weights),
-	nodes(src.nodes),
-	evolutionHash(src.evolutionHash),
-	species(src.species),
-	fitness(src.fitness)
-	{}*/
-
 	std::vector<N_SIZE> sourceNode;
 	std::vector<N_SIZE> destNode;
 	std::vector<N_SIZE> inputNode;
@@ -40,3 +28,12 @@ struct Genome
 
 typedef std::unique_ptr<Genome> GEN_PTR;
 typedef std::unique_ptr<std::vector<GEN_PTR>> POP_PTR;
+
+namespace GenomeUtil
+{
+
+	GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts);
+	float Compatibility(const float c1, const float c2, const float c3, const Genome& genome1, const Genome& genome2);
+	bool CheckIfConnectionExists(const GEN_PTR& gen, const std::pair<N_SIZE, N_SIZE> connection);
+	GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableChance);
+}
