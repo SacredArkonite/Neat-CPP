@@ -111,6 +111,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="fitness.cpp" />
     <ClCompile Include="hasher.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mutate.cpp" />
@@ -121,6 +122,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defines.h" />
+    <ClInclude Include="fitness.h" />
     <ClInclude Include="genome.h" />
     <ClInclude Include="hasher.h" />
     <ClInclude Include="mutate.h" />

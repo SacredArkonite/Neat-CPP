@@ -8,8 +8,6 @@
 
 namespace Population
 {
-	RNG rng;
-
 	GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
 	{
 		auto genome = std::make_unique<Genome>();
@@ -132,21 +130,21 @@ namespace Population
 		auto pop_end = pop->end();
 		for (auto it = pop->begin(); it != pop_end; it++) {
 			//Mutate the genome?
-			if (rng.RngProb() < genomeWeightMutation)
+			if (RNG::RngProb() < genomeWeightMutation)
 			{
 				auto i_w_end = (*it)->weights.end();
 				for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
 				{
 					//Mutate the weight by scaling?
-					if (rng.RngProb() < weightMutation)
+					if (RNG::RngProb() < weightMutation)
 					{
-						(*i_w) *= rng.RngRange();
+						(*i_w) *= RNG::RngRange();
 					}
 					//Mutate random (same as initial)
 					else
 					{
 						// change sing?
-						(*i_w) = rng.RngWeight();
+						(*i_w) = RNG::RngWeight();
 					}
 				}
 			}
@@ -176,7 +174,7 @@ namespace Population
 		//Distribute the genome with their transform into the maps
 		for (auto it = (*pop).begin(); it < end; it++)
 		{
-			float rn = rng.RngProb();
+			float rn = RNG::RngProb();
 			if (rn < new_node_percent)
 			{	// Mutate Add Node
 				//Do not mutate if we reached the max number of nodes
@@ -187,7 +185,7 @@ namespace Population
 				else
 				{
 					size_t hash = (*it)->evolutionHash;
-					C_SIZE connection_id = rng.LessThan((*it)->history.size());
+					C_SIZE connection_id = RNG::LessThan((*it)->history.size());
 					auto key = std::pair<size_t, C_SIZE>(hash, connection_id);
 					mm_node.insert({ key, std::move(*it) });
 				}
@@ -203,7 +201,7 @@ namespace Population
 				{
 					size_t hash = (*it)->evolutionHash;
 					N_SIZE nb_nodes = (*it)->nodes;
-					auto connection = std::pair<N_SIZE, N_SIZE>(rng.LessThan(nb_nodes), rng.LessThan(nb_nodes));
+					auto connection = std::pair<N_SIZE, N_SIZE>(RNG::LessThan(nb_nodes), RNG::LessThan(nb_nodes));
 
 					//Check if this connection already exists
 					if (CheckIfConnectionExists(it, connection))
@@ -311,7 +309,7 @@ namespace Population
 		for (auto it = census.begin(); it != it_end; it++)
 		{
 			if (*it != 0) {
-				GEN_PTR specimen = std::make_unique<Genome>(*(pop->at(specieLocation + rng.LessThan(*it))));
+				GEN_PTR specimen = std::make_unique<Genome>(*(pop->at(specieLocation + RNG::LessThan(*it))));
 				encyclopedia->push_back(std::move(specimen));
 				specieLocation += *it;
 			}
@@ -345,7 +343,7 @@ namespace Population
 				offspring->history.push_back(genome1->history[it1]);
 				offspring->sourceNode.push_back(genome1->sourceNode[it1]);
 				offspring->destNode.push_back(genome1->destNode[it1]);
-				offspring->weights.push_back(rng.RngBool() ? genome1->weights[it1] : genome2->weights[it2]);
+				offspring->weights.push_back(RNG::RngBool() ? genome1->weights[it1] : genome2->weights[it2]);
 
 				//Inherits disabled links
 				if (dis_it1 != dis_it1_end && *dis_it1 == it1)
@@ -447,7 +445,7 @@ namespace Population
 			std::remove_if(
 				offspring->disabledIndex.begin(),
 				offspring->disabledIndex.end(),
-				[](uint16_t enableChance) {return (rng.RngProb()<enableChance); }),
+				[](uint16_t enableChance) {return (RNG::RngProb()<enableChance); }),
 			offspring->disabledIndex.end());
 
 
@@ -551,7 +549,7 @@ namespace Population
 		{
 			for (; spotsLeft != 0; spotsLeft++)
 			{
-				requiredChilds[rng.LessThan(speciesCount)] -= 1;
+				requiredChilds[RNG::LessThan(speciesCount)] -= 1;
 				//Species should DIE here!!
 				requiredChilds.erase(std::remove(requiredChilds.begin(), requiredChilds.end(), 0), requiredChilds.end());
 				speciesCount = requiredChilds.size();
@@ -562,7 +560,7 @@ namespace Population
 		{
 			for (; spotsLeft != 0; spotsLeft--)
 			{
-				requiredChilds[rng.LessThan(speciesCount)] += 1;
+				requiredChilds[RNG::LessThan(speciesCount)] += 1;
 			}
 		}
 
@@ -572,11 +570,11 @@ namespace Population
 			for (int childCount = 0; childCount < requiredChilds[species]; childCount++)
 			{
 				//Mutation without crossover
-				if (rng.RngProb() < noCrossover)
+				if (RNG::RngProb() < noCrossover)
 				{
 					//Select 1 genome at random based on fitness wheel
 					auto left = pop->begin() + speciesIndex[species].first;
-					float fitnessArrow = rng.RngProb() * speciesFitness[species];
+					float fitnessArrow = RNG::RngProb() * speciesFitness[species];
 					while (fitnessArrow >(*left)->fitness)
 					{
 						fitnessArrow -= (*left)->fitness;
@@ -588,7 +586,7 @@ namespace Population
 				{
 					//Select 2 genomes at random based on fitness wheel
 					auto left = pop->begin() + speciesIndex[species].first;
-					float fitnessArrow = rng.RngProb() * speciesFitness[species];
+					float fitnessArrow = RNG::RngProb() * speciesFitness[species];
 					while (fitnessArrow > (*left)->fitness)
 					{
 						fitnessArrow -= (*left)->fitness;
@@ -597,7 +595,7 @@ namespace Population
 					GEN_PTR parent1 = std::make_unique<Genome>(**left);
 
 					left = pop->begin() + speciesIndex[species].first;
-					fitnessArrow = rng.RngProb() * speciesFitness[species];
+					fitnessArrow = RNG::RngProb() * speciesFitness[species];
 					while (fitnessArrow > (*left)->fitness)
 					{
 						fitnessArrow -= (*left)->fitness;
@@ -612,6 +610,13 @@ namespace Population
 		}
 
 		return nexxgen;
+	}
+
+	POP_PTR CreateEncyclopedia(const GEN_PTR & genome)
+	{
+		POP_PTR speciesEncyclopedia = std::make_unique<std::vector<GEN_PTR>>();;
+		speciesEncyclopedia->push_back(std::make_unique<Genome>(*genome));
+		return speciesEncyclopedia;
 	}
 
 }

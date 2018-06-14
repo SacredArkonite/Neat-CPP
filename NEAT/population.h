@@ -17,5 +17,5 @@ namespace Population
 	POP_PTR UpdateEncyclopedia(const POP_PTR& pop, const std::vector<uint16_t>& census);
 	GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableChance);
 	POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const float noCrossover, const float enableGeneChance);
-
+	POP_PTR CreateEncyclopedia(const GEN_PTR& genome);
 }

@@ -6,14 +6,12 @@
 
 namespace Mutate
 {
-	RNG rng;
-
 	GEN_PTR AddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, const C_SIZE histNb)
 	{
 		genome->history.push_back(histNb);
 		genome->sourceNode.push_back(from);
 		genome->destNode.push_back(to);
-		genome->weights.push_back(rng.RngWeight());
+		genome->weights.push_back(RNG::RngWeight());
 		genome->evolutionHash = Hash::HashGenetics(genome->evolutionHash, histNb);
 
 		return genome;

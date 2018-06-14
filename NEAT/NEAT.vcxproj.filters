@@ -36,6 +36,9 @@
     <ClCompile Include="phenome.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="fitness.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RNG.h">
@@ -60,6 +63,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="phenome.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="fitness.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
