@@ -207,7 +207,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 			{
 				//Select 1 genome at random based on fitness wheel
 				auto left = pop->begin() + (speciesIndex[species].second);
-				float fitnessArrow = RNG::RngProb() * speciesFitness[species] / 2; //Only chose from the top 50% of assets
+				float fitnessArrow = RNG::RngProb() * speciesFitness[species] / 1; //Only chose from the top 50% of assets
 				while (fitnessArrow >(*left)->fitness)
 				{
 					fitnessArrow -= (*left)->fitness;
@@ -219,7 +219,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 			{
 				//Select 2 genomes at random based on fitness wheel
 				auto left = pop->begin() + speciesIndex[species].second;
-				float fitnessArrow = RNG::RngProb() * speciesFitness[species] / 2; //Only chose from the top 50% of assets
+				float fitnessArrow = RNG::RngProb() * speciesFitness[species] / 1; //Only chose from the top 50% of assets
 				while (fitnessArrow > (*left)->fitness)
 				{
 					fitnessArrow -= (*left)->fitness;
@@ -228,7 +228,7 @@ void Population::CreateOffsprings(const float noCrossover, const float enableGen
 				GEN_PTR parent1 = std::make_unique<Genome>(**left);
 
 				left = pop->begin() + speciesIndex[species].second;
-				fitnessArrow = RNG::RngProb() * speciesFitness[species] / 2; //Only chose from the top 50% of assets
+				fitnessArrow = RNG::RngProb() * speciesFitness[species] / 1; //Only chose from the top 50% of assets
 				while (fitnessArrow > (*left)->fitness)
 				{
 					fitnessArrow -= (*left)->fitness;
@@ -360,7 +360,7 @@ void Population::MutateStructure(float new_node_percent, float new_link_percent)
 	pop = std::move(nexxgen);
 }
 	
-void Population::MutateWeights(float genomeMutationProb, float weightMutationProb, float minWeightMutation, float maxWeightMutation)
+void Population::MutateWeights(float genomeMutationProb, std::vector<float> weightMutationProb, float minWeightMutation, float maxWeightMutation)
 {
 	//We mutate by scaling randomly
 	int c = 0;
@@ -373,13 +373,13 @@ void Population::MutateWeights(float genomeMutationProb, float weightMutationPro
 			auto i_w_end = (*it)->weights.end();
 			for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
 			{
-				//Mutate the weight by scaling or +/-
-				if (RNG::RngProb() < weightMutationProb)
+				//Mutate the weight by scaling
+				if (RNG::RngProb() < weightMutationProb[0])
 				{
 					(*i_w) *= RNG::RngRange();
 				}
 				//Mutate random (same as initial)
-				else
+				else if(RNG::RngProb() < weightMutationProb[1])
 				{
 					// change sing?
 					(*i_w) = RNG::RngWeight();

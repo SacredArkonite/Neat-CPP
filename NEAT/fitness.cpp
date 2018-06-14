@@ -20,9 +20,9 @@ namespace Fitness
 			std::vector<float> delta = Simulation::GetSimFitness(frame, actions);
 
 			for each (float d in delta)
-				fitness += d;
+				fitness += d*d;
 		}
-		return fitness;
+		return 1-fitness/8;
 	}
 
 	GEN_PTR CalculateFitness(const POP_PTR& pop)

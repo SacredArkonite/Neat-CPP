@@ -16,16 +16,19 @@ namespace Phenome
 		std::vector<float> temp_nodes(gen->nodes, 0);
 		N_SIZE input_it = 0;
 		N_SIZE input_it_end = gen->inputNode.size();
-		for (; input_it < input_it_end; input_it++)
-		{
-			N_SIZE inputName = gen->inputNode[input_it];
-			nodes[inputName] = input[input_it];
-		}
+		
 
 		//Let propagate a few steps
 		auto disabled_it = gen->disabledIndex.begin();
 		auto disabled_it_end = gen->disabledIndex.end();
 		for (unsigned int i = 0; i < maxSteps; i++) {
+			//Feed inputs
+			input_it = 0;
+			for (; input_it < input_it_end; input_it++)
+			{
+				N_SIZE inputName = gen->inputNode[input_it];
+				nodes[inputName] = input[input_it];
+			}
 			//1 step
 			for (unsigned int c = 0; c < gen->history.size(); c++) {
 				if (disabled_it != disabled_it_end && *disabled_it == c)
@@ -36,6 +39,7 @@ namespace Phenome
 			//Activation function
 			for (unsigned int c = 0; c < nodes.size(); c++) {
 				nodes[c] = ActivationFunction(temp_nodes[c]);
+				temp_nodes[c] = nodes[c];
 			}
 		}
 

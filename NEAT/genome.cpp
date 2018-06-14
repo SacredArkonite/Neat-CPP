@@ -165,7 +165,7 @@ namespace GenomeUtil
 			{	//gene2 has disjoint
 
 				//Do not add a link if already there
-				if (!CheckIfConnectionExists(offspring, { genome2->sourceNode[it1] ,genome2->destNode[it1] }))
+				if (!CheckIfConnectionExists(offspring, { genome2->sourceNode[it2] ,genome2->destNode[it2] }))
 				{
 					//Inherits from genome 2
 					offspring->history.push_back(genome2->history[it2]);

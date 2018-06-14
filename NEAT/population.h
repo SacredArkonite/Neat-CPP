@@ -14,7 +14,7 @@ public:
 	void ExplicitFitnessSharing(const float c1, const float c2, const float c3, const float dt);
 	void CreateOffsprings(const float noCrossover, const float enableGeneChance);
 	void MutateStructure(float new_node_percent, float new_link_percent);
-	void MutateWeights(float GenomeMutationProb, float weightMutationProb, float minWeightMutation, float maxWeightMutation);
+	void MutateWeights(float GenomeMutationProb, std::vector<float> weightMutationProb, float minWeightMutation, float maxWeightMutation);
 	void PrintFitness();
 	void PrintHighestFitness();
 
