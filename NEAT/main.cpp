@@ -5,139 +5,13 @@
 #include<random>
 #include<map>
 
-#include"RNG.h"
+#include "RNG.h"
+#include "defines.h"
+#include "hasher.h"
+#include "genome.h"
+#include "mutate.h"
 
 RNG rng;
-
-typedef uint8_t N_SIZE;
-typedef uint16_t N_SIZEx2;
-typedef uint32_t C_SIZE;
-#define MAX_NODES 0x07
-#define MAX_CONNECTIONS 1500
-
-struct Genome
-{
-	//Genome(const Genome & src) = default;
-		/*sourceNode(src.sourceNode),
-		destNode(src.destNode),
-		history(src.history),
-		disabledIndex(src.disabledIndex),
-		weights(src.weights),
-		nodes(src.nodes),
-		evolutionHash(src.evolutionHash),
-		species(src.species),
-		fitness(src.fitness)
-	{}*/
-
-	std::vector<N_SIZE> sourceNode;
-	std::vector<N_SIZE> destNode;
-	std::vector<N_SIZE> inputNode;
-	std::vector<N_SIZE> outputNode;
-	std::vector<C_SIZE> history;
-	std::vector<C_SIZE> disabledIndex;
-	std::vector<float> weights;
-	N_SIZE nodes = 0;
-	size_t evolutionHash = 0;
-	uint16_t species = 0;
-	float fitness = 0.0f;
-
-	bool operator < (const Genome& str) const
-	{
-		return (species < str.species);
-	}
-};
-typedef std::unique_ptr<Genome> GEN_PTR;
-typedef std::unique_ptr<std::vector<GEN_PTR>> POP_PTR;
-
-size_t hashGenetics(const std::vector<C_SIZE>& history) {
-	std::hash<int> hasher;
-	size_t newhash = 0;
-	for (auto it = history.begin(); it != history.end(); it++) {
-		newhash ^= hasher(*it) + 0x9e3779b9 + (newhash << 6) + (newhash >> 2);
-	}
-	return newhash;
-}
-
-size_t hashGenetics(const size_t oldHash, const std::vector<C_SIZE>& newHist) {
-	std::hash<int> hasher;
-	size_t newHash = oldHash;
-	for (auto it = newHist.begin(); it != newHist.end(); it++)
-	{
-		newHash ^= hasher(*it) + 0x9e3779b9 + (newHash << 6) + (newHash >> 2);
-	}
-	return newHash;
-}
-
-size_t hashGenetics(const size_t oldHash, const C_SIZE newHist) {
-	std::hash<int> hasher;
-	size_t newHash = oldHash;
-	newHash ^= hasher(newHist) + 0x9e3779b9 + (newHash << 6) + (newHash >> 2);
-	return newHash;
-}
-
-size_t hashGenetics(const size_t oldHash, const C_SIZE newHist1, const C_SIZE newHist2) {
-	std::hash<int> hasher;
-	size_t newHash = oldHash;
-	newHash ^= hasher(newHist1) + 0x9e3779b9 + (newHash << 6) + (newHash >> 2);
-	newHash ^= hasher(newHist2) + 0x9e3779b9 + (newHash << 6) + (newHash >> 2);
-	return newHash;
-}
-
-GEN_PTR MutateAddConnection(GEN_PTR genome, const N_SIZE from, const N_SIZE to, const C_SIZE histNb)
-{
-	genome->history.push_back(histNb);
-	genome->sourceNode.push_back(from);
-	genome->destNode.push_back(to);
-	genome->weights.push_back(rng.RngWeight());
-	genome->evolutionHash = hashGenetics(genome->evolutionHash, histNb);
-
-	return genome;
-}
-
-GEN_PTR MutateAddNode(GEN_PTR genome, const C_SIZE index, const C_SIZE histNb)
-{
-	//Don't forget to disable the old connection!!
-	genome->disabledIndex.push_back(index);
-	genome->history.push_back(histNb);
-	genome->history.push_back(histNb+1);
-
-	genome->sourceNode.push_back(genome->sourceNode[index]);
-	genome->destNode.push_back(genome->nodes);
-	genome->weights.push_back(1.0);
-
-	genome->sourceNode.push_back(genome->nodes);
-	genome->destNode.push_back(genome->destNode[index]);
-	genome->weights.push_back(genome->weights[index]);
-
-	genome->evolutionHash = hashGenetics(genome->evolutionHash, histNb, histNb+1);
-	genome->nodes++;
-
-	return genome;
-}
-
-GEN_PTR MutateAddInput(GEN_PTR genome, C_SIZE& histNb)
-{
-	genome->inputNode.push_back(genome->nodes);
-	for (int i = genome->outputNode.size() - 1; i >= 0; i--) {
-		genome = MutateAddConnection(std::move(genome), genome->nodes, genome->outputNode[i], histNb++);
-	}
-
-	genome->nodes++;
-
-	return genome;
-}
-
-GEN_PTR MutateAddOutput(GEN_PTR genome, C_SIZE& histNb)
-{
-	genome->outputNode.push_back(genome->nodes);
-	for (int i = genome->inputNode.size() - 1; i >= 0; i--) {
-		genome = MutateAddConnection(std::move(genome), genome->inputNode[i], genome->nodes, histNb++);
-	}
-
-	genome->nodes++;
-
-	return genome;
-}
 
 GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
 {
@@ -148,10 +22,10 @@ GEN_PTR CreateGenome(const N_SIZE nIns, const N_SIZE nOuts)
 	genome->fitness = 0.0;
 
 	for (N_SIZE i = 0; i < nIns; i++)
-		genome = MutateAddInput(std::move(genome), hist);
+		genome = Mutate::AddInput(std::move(genome), hist);
 
 	for (N_SIZE j = 0; j < nOuts; j++)
-		genome = MutateAddOutput(std::move(genome),hist);
+		genome = Mutate::AddOutput(std::move(genome),hist);
 
 	return genome;
 }
@@ -220,12 +94,12 @@ float Compatibility(const float c1, const float c2, const float c3, const Genome
 POP_PTR GenerateExample(C_SIZE& hist)
 {
 	POP_PTR pop = CreatePop(2, 3, 1, hist);
-	(*pop)[0] = MutateAddNode(std::move((*pop)[0]), 1, 4);
-	(*pop)[1] = MutateAddNode(std::move((*pop)[1]), 1, 4);
-	(*pop)[1] = MutateAddNode(std::move((*pop)[1]), 4, 6);
-	(*pop)[0] = MutateAddConnection(std::move((*pop)[0]), 0, 4, 8);
-	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 2, 4, 9);
-	(*pop)[1] = MutateAddConnection(std::move((*pop)[1]), 0, 5, 10);
+	(*pop)[0] = Mutate::AddNode(std::move((*pop)[0]), 1, 4);
+	(*pop)[1] = Mutate::AddNode(std::move((*pop)[1]), 1, 4);
+	(*pop)[1] = Mutate::AddNode(std::move((*pop)[1]), 4, 6);
+	(*pop)[0] = Mutate::AddConnection(std::move((*pop)[0]), 0, 4, 8);
+	(*pop)[1] = Mutate::AddConnection(std::move((*pop)[1]), 2, 4, 9);
+	(*pop)[1] = Mutate::AddConnection(std::move((*pop)[1]), 0, 5, 10);
 	
 	return pop;
 }
@@ -367,7 +241,7 @@ POP_PTR MutateStructure(POP_PTR pop, float new_node_percent, float new_link_perc
 				last_key = it->first;
 				hist += 2;
 			}
-			nexxgen->push_back(MutateAddNode(std::move(it->second),last_key.second,hist));
+			nexxgen->push_back(Mutate::AddNode(std::move(it->second),last_key.second,hist));
 		}
 
 		hist += 2;
@@ -386,7 +260,7 @@ POP_PTR MutateStructure(POP_PTR pop, float new_node_percent, float new_link_perc
 				last_key = it->first;
 				hist ++;
 			}
-			nexxgen->push_back(MutateAddConnection(std::move(it->second), last_key.second.first, last_key.second.second, hist));
+			nexxgen->push_back(Mutate::AddConnection(std::move(it->second), last_key.second.first, last_key.second.second, hist));
 		}
 		hist++;
 	}
@@ -606,7 +480,7 @@ GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableC
 	offspring->nodes = nodeCollector.size();
 
 	//Create the new Hash
-	offspring->evolutionHash = hashGenetics(offspring->history);
+	offspring->evolutionHash = Hash::HashGenetics(offspring->history);
 
 	return offspring;
 }

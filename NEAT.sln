@@ -5,6 +5,11 @@ VisualStudioVersion = 15.0.26730.10
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "NEAT", "NEAT\NEAT.vcxproj", "{0F244999-05A9-494E-8CA1-748B1A4201FA}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{74AD427D-6D5D-40E9-B84B-B7213AEA184A}"
+	ProjectSection(SolutionItems) = preProject
+		NEAT\hasher.cpp = NEAT\hasher.cpp
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
