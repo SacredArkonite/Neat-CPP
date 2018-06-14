@@ -114,14 +114,20 @@
     <ClCompile Include="hasher.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="mutate.cpp" />
+    <ClCompile Include="phenome.cpp" />
+    <ClCompile Include="population.cpp" />
     <ClCompile Include="RNG.cpp" />
+    <ClCompile Include="simulation.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="defines.h" />
     <ClInclude Include="genome.h" />
     <ClInclude Include="hasher.h" />
     <ClInclude Include="mutate.h" />
+    <ClInclude Include="phenome.h" />
+    <ClInclude Include="population.h" />
     <ClInclude Include="RNG.h" />
+    <ClInclude Include="simulation.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
