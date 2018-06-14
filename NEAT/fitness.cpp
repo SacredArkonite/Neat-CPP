@@ -23,14 +23,13 @@ namespace Fitness
 		return fitness;
 	}
 
-	POP_PTR CalculateFitness(POP_PTR pop)
+	void CalculateFitness(const POP_PTR& pop)
 	{
 		auto it_end = pop->end();
 		for (auto it = pop->begin(); it < it_end; it++)
 		{
 			(*it)->fitness = Simulate(*it);
 		}
-		return pop;
 	}
 
 	uint16_t SumSharing(const GEN_PTR& gen, const POP_PTR& pop, const float c1, const float c2, const float c3, const float dt)
@@ -46,7 +45,7 @@ namespace Fitness
 		return sum;
 	}
 
-	POP_PTR ExplicitFitnessSharing(POP_PTR pop, const float c1, const float c2, const float c3, const float dt)
+	void ExplicitFitnessSharing(const POP_PTR& pop, const float c1, const float c2, const float c3, const float dt)
 	{
 		//Generate a map to all the different species and calculate species global fitness
 		auto pop_it_begin = pop->begin();
@@ -66,7 +65,5 @@ namespace Fitness
 		{
 			(*pop_it)->fitness = newFitness[i];
 		}
-
-		return pop;
 	}
 }

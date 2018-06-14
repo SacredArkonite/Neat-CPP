@@ -3,8 +3,11 @@
 #include "mutate.h"
 #include "hasher.h"
 #include "RNG.h"
+#include "fitness.h"
 
 #include<map>
+
+#include<iostream>
 
 namespace Population
 {
@@ -120,202 +123,6 @@ namespace Population
 			}
 		}
 		return false;
-	}
-
-	POP_PTR MutateWeights(POP_PTR pop, float genomeWeightMutation, float weightMutation, float minWeightMutation, float maxWeightMutation)
-	{
-		//We mutate by scaling randomly
-		int c = 0;
-
-		auto pop_end = pop->end();
-		for (auto it = pop->begin(); it != pop_end; it++) {
-			//Mutate the genome?
-			if (RNG::RngProb() < genomeWeightMutation)
-			{
-				auto i_w_end = (*it)->weights.end();
-				for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
-				{
-					//Mutate the weight by scaling?
-					if (RNG::RngProb() < weightMutation)
-					{
-						(*i_w) *= RNG::RngRange();
-					}
-					//Mutate random (same as initial)
-					else
-					{
-						// change sing?
-						(*i_w) = RNG::RngWeight();
-					}
-				}
-			}
-			c++;
-		}
-
-		return pop;
-	}
-
-	POP_PTR MutateStructure(POP_PTR pop, float new_node_percent, float new_link_percent, C_SIZE& hist)
-	{
-		//making a new node and a new connection should be mutually exclusive
-		new_link_percent = new_link_percent + new_node_percent;
-
-
-		//Prepping next gen
-		POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
-
-		//We use a multimap to order the genome by their {type,operation} 
-		//in order to identify common types after the transform
-		//so we can give the same history number to the same transform
-		std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR> mm_node;
-		std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR> mm_conn;
-
-		auto end = (*pop).end();
-
-		//Distribute the genome with their transform into the maps
-		for (auto it = (*pop).begin(); it < end; it++)
-		{
-			float rn = RNG::RngProb();
-			if (rn < new_node_percent)
-			{	// Mutate Add Node
-				//Do not mutate if we reached the max number of nodes
-				if ((*it)->nodes == MAX_NODES)
-				{
-					nexxgen->push_back(std::move(*it));
-				}
-				else
-				{
-					size_t hash = (*it)->evolutionHash;
-					C_SIZE connection_id = RNG::LessThan((*it)->history.size());
-					auto key = std::pair<size_t, C_SIZE>(hash, connection_id);
-					mm_node.insert({ key, std::move(*it) });
-				}
-			}
-			else if (rn < new_link_percent)
-			{	// Mutate Add Connection
-				//Do not mutate if we reached the max number of connections
-				if ((*it)->sourceNode.size() == MAX_NODES)
-				{
-					nexxgen->push_back(std::move(*it));
-				}
-				else
-				{
-					size_t hash = (*it)->evolutionHash;
-					N_SIZE nb_nodes = (*it)->nodes;
-					auto connection = std::pair<N_SIZE, N_SIZE>(RNG::LessThan(nb_nodes), RNG::LessThan(nb_nodes));
-
-					//Check if this connection already exists
-					if (CheckIfConnectionExists(it, connection))
-					{
-						nexxgen->push_back(std::move(*it));
-					}
-					else
-					{
-						auto key = std::pair<size_t, std::pair<N_SIZE, N_SIZE>>(hash, connection);
-						mm_conn.insert({ key, std::move(*it) });
-					}
-				}
-			}
-			else
-			{
-				// Keep as is
-				nexxgen->push_back(std::move(*it));
-			}
-
-		}
-
-		//Iterate over the new nodes multimap in key order
-		if (!mm_node.empty())
-		{
-			std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR>::iterator it = mm_node.begin();
-			std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR>::iterator end = mm_node.end();
-			std::pair<size_t, C_SIZE> last_key;
-			for (last_key = it->first; it != end; it++) {
-				//Increment the mutation ID if when needed
-				if (it->first != last_key)
-				{
-					last_key = it->first;
-					hist += 2;
-				}
-				nexxgen->push_back(Mutate::AddNode(std::move(it->second), last_key.second, hist));
-			}
-
-			hist += 2;
-		}
-
-		//Iterate over the new conx multimap in key order
-		if (!mm_conn.empty())
-		{
-			std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR>::iterator it = mm_conn.begin();
-			std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR>::iterator end = mm_conn.end();
-			std::pair<size_t, std::pair<N_SIZE, N_SIZE>> last_key = it->first;
-			for (; it != end; it++) {
-				//Increment the mutation ID if when needed
-				if (it->first != last_key)
-				{
-					last_key = it->first;
-					hist++;
-				}
-				nexxgen->push_back(Mutate::AddConnection(std::move(it->second), last_key.second.first, last_key.second.second, hist));
-			}
-			hist++;
-		}
-
-		return nexxgen;
-	}
-
-	int debug_counter = 0;
-	POP_PTR ClassifyGenomes(POP_PTR encyclopedia, POP_PTR pop, std::vector<uint16_t>& census, float c1, const float c2, const float c3, const float dt)
-	{
-		//Update all the genome's species, build a census and order the population by species
-		census = std::vector<uint16_t>(encyclopedia->size());
-		auto it_end = pop->end();
-		for (auto it = pop->begin(); it != it_end; it++)
-		{
-			auto dic_begin = encyclopedia->begin();
-			auto dic_end = encyclopedia->end();
-			bool found = false;
-			for (auto dic = dic_begin; dic != dic_end; dic++)
-			{
-				if (Compatibility(c1, c2, c3, **it, **dic) < dt)
-				{
-					uint16_t specieNb = dic - dic_begin;
-					(*it)->species = specieNb;
-					census[specieNb] += 1;
-					found = true;
-					break;
-				}
-			}
-			if (!found)
-			{
-				encyclopedia->push_back(std::make_unique<Genome>(**it));
-				(*it)->species = encyclopedia->size();
-				census.push_back(1);
-			}
-		}
-
-		std::sort(pop->begin(), pop->end(), [](const GEN_PTR& gen1, const GEN_PTR& gen2)
-		{ return (gen1->species == gen2->species) ? (gen1->fitness > gen2->fitness) : (gen1->species < gen2->species); });
-
-		return pop;
-	}
-
-	POP_PTR UpdateEncyclopedia(const POP_PTR& pop, const std::vector<uint16_t>& census)
-	{
-		//Select a random individual for each species
-		POP_PTR encyclopedia = std::make_unique<std::vector<GEN_PTR>>();
-		uint16_t specieLocation = 0;
-
-		auto it_end = census.end();
-		for (auto it = census.begin(); it != it_end; it++)
-		{
-			if (*it != 0) {
-				GEN_PTR specimen = std::make_unique<Genome>(*(pop->at(specieLocation + RNG::LessThan(*it))));
-				encyclopedia->push_back(std::move(specimen));
-				specieLocation += *it;
-			}
-		}
-
-		return encyclopedia;
 	}
 
 	GEN_PTR Mate(const GEN_PTR& genome1, const GEN_PTR& genome2, const float enableChance)
@@ -479,9 +286,92 @@ namespace Population
 
 		return offspring;
 	}
+	
+	Population::Population(const unsigned int popSize, const N_SIZE inputs, const N_SIZE outputs)
+	{
+		//Generate a vector of genome
+		pop = std::make_unique<std::vector<GEN_PTR>>();
 
+		for (int i = 0; i < popSize; i++)
+		{
+			pop->push_back(CreateGenome(inputs, outputs));
+		}
 
-	POP_PTR CreateOffsprings(POP_PTR pop, const std::vector<uint16_t>& census, const float noCrossover, const float enableGeneChance)
+		//Actualize the noevlty number based on the initial genome
+		innovationNumber = (*pop)[0]->history.size() + 1;
+
+		//Create the initial encyclopedia
+		encyclopedia = std::make_unique<std::vector<GEN_PTR>>();
+		encyclopedia->push_back(std::make_unique<Genome>(*((*pop)[0])));
+
+		//Update the census
+		census.push_back(popSize);
+	}
+	
+	void Population::ClassifyGenomes(float c1, const float c2, const float c3, const float dt)
+	{
+		//Update all the genome's species, build a census and order the population by species
+		census = std::vector<unsigned int>(encyclopedia->size());
+		auto it_end = pop->end();
+		for (auto it = pop->begin(); it != it_end; it++)
+		{
+			auto dic_begin = encyclopedia->begin();
+			auto dic_end = encyclopedia->end();
+			bool found = false;
+			for (auto dic = dic_begin; dic != dic_end; dic++)
+			{
+				if (Compatibility(c1, c2, c3, **it, **dic) < dt)
+				{
+					uint16_t specieNb = dic - dic_begin;
+					(*it)->species = specieNb;
+					census[specieNb] += 1;
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+			{
+				encyclopedia->push_back(std::make_unique<Genome>(**it));
+				(*it)->species = encyclopedia->size();
+				census.push_back(1);
+			}
+		}
+
+		std::sort(pop->begin(), pop->end(), [](const GEN_PTR& gen1, const GEN_PTR& gen2)
+		{ return (gen1->species == gen2->species) ? (gen1->fitness > gen2->fitness) : (gen1->species < gen2->species); });
+	}
+	
+	void Population::UpdateEncyclopedia()
+	{
+		//Select a random individual for each species
+		
+		encyclopedia = std::make_unique<std::vector<GEN_PTR>>();
+		
+
+		uint16_t specieLocation = 0;
+
+		auto it_end = census.end();
+		for (auto it = census.begin(); it != it_end; it++)
+		{
+			if (*it != 0) {
+				GEN_PTR specimen = std::make_unique<Genome>(*(pop->at(specieLocation + RNG::LessThan(*it))));
+				encyclopedia->push_back(std::move(specimen));
+				specieLocation += *it;
+			}
+		}
+	}
+	
+	void Population::CalculateFitness()
+	{
+		Fitness::CalculateFitness(pop);
+	}
+
+	void Population::ExplicitFitnessSharing(const float c1, const float c2, const float c3, const float dt)
+	{
+		Fitness::ExplicitFitnessSharing(pop, c1, c2, c3, dt);
+	}
+
+	void Population::CreateOffsprings(const float noCrossover, const float enableGeneChance)
 	{
 		//Create an entire new gen
 		POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
@@ -609,14 +499,155 @@ namespace Population
 			}
 		}
 
-		return nexxgen;
+		pop = std::move(nexxgen);
 	}
-
-	POP_PTR CreateEncyclopedia(const GEN_PTR & genome)
+	
+	void Population::MutateStructure(float new_node_percent, float new_link_percent)
 	{
-		POP_PTR speciesEncyclopedia = std::make_unique<std::vector<GEN_PTR>>();;
-		speciesEncyclopedia->push_back(std::make_unique<Genome>(*genome));
-		return speciesEncyclopedia;
-	}
+		//making a new node and a new connection should be mutually exclusive
+		new_link_percent = new_link_percent + new_node_percent;
 
+
+		//Prepping next gen
+		POP_PTR nexxgen = std::make_unique<std::vector<GEN_PTR>>();
+
+		//We use a multimap to order the genome by their {type,operation} 
+		//in order to identify common types after the transform
+		//so we can give the same history number to the same transform
+		std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR> mm_node;
+		std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR> mm_conn;
+
+		auto end = (*pop).end();
+
+		//Distribute the genome with their transform into the maps
+		for (auto it = (*pop).begin(); it < end; it++)
+		{
+			float rn = RNG::RngProb();
+			if (rn < new_node_percent)
+			{	// Mutate Add Node
+				//Do not mutate if we reached the max number of nodes
+				if ((*it)->nodes == MAX_NODES)
+				{
+					nexxgen->push_back(std::move(*it));
+				}
+				else
+				{
+					size_t hash = (*it)->evolutionHash;
+					C_SIZE connection_id = RNG::LessThan((*it)->history.size());
+					auto key = std::pair<size_t, C_SIZE>(hash, connection_id);
+					mm_node.insert({ key, std::move(*it) });
+				}
+			}
+			else if (rn < new_link_percent)
+			{	// Mutate Add Connection
+				//Do not mutate if we reached the max number of connections
+				if ((*it)->sourceNode.size() == MAX_NODES)
+				{
+					nexxgen->push_back(std::move(*it));
+				}
+				else
+				{
+					size_t hash = (*it)->evolutionHash;
+					N_SIZE nb_nodes = (*it)->nodes;
+					auto connection = std::pair<N_SIZE, N_SIZE>(RNG::LessThan(nb_nodes), RNG::LessThan(nb_nodes));
+
+					//Check if this connection already exists
+					if (CheckIfConnectionExists(it, connection))
+					{
+						nexxgen->push_back(std::move(*it));
+					}
+					else
+					{
+						auto key = std::pair<size_t, std::pair<N_SIZE, N_SIZE>>(hash, connection);
+						mm_conn.insert({ key, std::move(*it) });
+					}
+				}
+			}
+			else
+			{
+				// Keep as is
+				nexxgen->push_back(std::move(*it));
+			}
+
+		}
+
+		//Iterate over the new nodes multimap in key order
+		if (!mm_node.empty())
+		{
+			std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR>::iterator it = mm_node.begin();
+			std::multimap<std::pair<size_t, C_SIZE>, GEN_PTR>::iterator end = mm_node.end();
+			std::pair<size_t, C_SIZE> last_key;
+			for (last_key = it->first; it != end; it++) {
+				//Increment the mutation ID if when needed
+				if (it->first != last_key)
+				{
+					last_key = it->first;
+					innovationNumber += 2;
+				}
+				nexxgen->push_back(Mutate::AddNode(std::move(it->second), last_key.second, innovationNumber));
+			}
+
+			innovationNumber += 2;
+		}
+
+		//Iterate over the new conx multimap in key order
+		if (!mm_conn.empty())
+		{
+			std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR>::iterator it = mm_conn.begin();
+			std::multimap<std::pair<size_t, std::pair<N_SIZE, N_SIZE>>, GEN_PTR>::iterator end = mm_conn.end();
+			std::pair<size_t, std::pair<N_SIZE, N_SIZE>> last_key = it->first;
+			for (; it != end; it++) {
+				//Increment the mutation ID if when needed
+				if (it->first != last_key)
+				{
+					last_key = it->first;
+					innovationNumber++;
+				}
+				nexxgen->push_back(Mutate::AddConnection(std::move(it->second), last_key.second.first, last_key.second.second, innovationNumber));
+			}
+			innovationNumber++;
+		}
+
+		pop = std::move(nexxgen);
+	}
+	
+	void Population::MutateWeights(float genomeMutationProb, float weightMutationProb, float minWeightMutation, float maxWeightMutation)
+	{
+		//We mutate by scaling randomly
+		int c = 0;
+
+		auto pop_end = pop->end();
+		for (auto it = pop->begin(); it != pop_end; it++) {
+			//Mutate the genome?
+			if (RNG::RngProb() < genomeMutationProb)
+			{
+				auto i_w_end = (*it)->weights.end();
+				for (auto i_w = (*it)->weights.begin(); i_w != i_w_end; i_w++)
+				{
+					//Mutate the weight by scaling?
+					if (RNG::RngProb() < weightMutationProb)
+					{
+						(*i_w) *= RNG::RngRange();
+					}
+					//Mutate random (same as initial)
+					else
+					{
+						// change sing?
+						(*i_w) = RNG::RngWeight();
+					}
+				}
+			}
+			c++;
+		}
+	}
+	
+	void Population::PrintFitness()
+	{
+		//CalculateFitness();
+		for (auto it = pop->begin(); it < pop->end(); it++)
+		{
+			std::cout << (*it)->fitness << std::endl;
+		}
+	}
+	
 }
