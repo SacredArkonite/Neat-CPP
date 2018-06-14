@@ -62,7 +62,7 @@ namespace Fitness
 
 		//Update fitness
 		int i = 0;
-		for (; pop_it < pop_it_end; pop_it++, i++)
+		for (pop_it = pop_it_begin; pop_it < pop_it_end; pop_it++, i++)
 		{
 			(*pop_it)->fitness = newFitness[i];
 		}

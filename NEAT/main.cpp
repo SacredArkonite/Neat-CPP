@@ -10,7 +10,7 @@ int main()
 	std::cout << "hello bitches!" << std::endl;
 
 	//Create initial population
-	Population::Population pop(150, 3, 1);
+	Population pop(150, 3, 1);
 
 	//Generate species dictionnary
 	
@@ -32,7 +32,7 @@ int main()
 		pop.CreateOffsprings(0.25, 0.25);
 		
 		//Mutate Structure
-		pop.MutateStructure(0.03, 0.05);
+		pop.MutateStructure(0.003, 0.005);
 		
 		//Mutate weights
 		pop.MutateWeights(0.8, 0.9, 0.5, 1.5);
